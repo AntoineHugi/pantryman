@@ -1,11 +1,13 @@
 package org.pantry.models
 
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class GroceryList(
-    val id: UUID,
+    val id: String,
     val name: String,
-    val items: List<Item>,
+    //val items: List<Item>,
     ) {
 
 }
