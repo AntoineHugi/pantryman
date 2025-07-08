@@ -12,19 +12,26 @@ repositories {
 }
 
 application {
-    // mainClass = "org.pantry.MainKt"
-    mainClass = "io.ktor.server.netty.EngineMain"
+   mainClass = "org.pantry.ApplicationKt"
 }
 
 dependencies {
+    val ktorVersion = "3.2.1"
+    val logbackVersion = "1.5.6"
+    val jUnitVersion = "5.10.0"
+
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty")
-    implementation("ch.qos.logback:logback-classic:1.4.11")
+    implementation("ch.qos.logback:logback-classic:${logbackVersion}")
     implementation("io.ktor:ktor-server-core")
     implementation("io.ktor:ktor-server-config-yaml")
 
+    implementation("io.ktor:ktor-server-content-negotiation:${ktorVersion}")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:${ktorVersion}")
+
+
     testImplementation("io.ktor:ktor-server-test-host")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
+    testImplementation("org.junit.jupiter:junit-jupiter:${jUnitVersion}")
     testImplementation(kotlin("test"))
 }
 
