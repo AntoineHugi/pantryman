@@ -1,13 +1,17 @@
-package com.pantry.org.pantry
+package org.pantry
 
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
+import io.ktor.server.request.receive
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.pantry.models.GroceryList
 
 fun Application.menuApi() {
     routing {
         get(
-            "/menu") {
+            "/menu"
+        ) {
             call.respondText("Hello World!")
         }
         get("/userSettings") {
@@ -23,8 +27,10 @@ fun Application.groceriesApi() {
     routing {
         route("/lists") {
             post {
-                call.respondText("Create a new grocery list")
-
+                try {val groceryList = call.receive<GroceryList>()
+                print(groceryList)
+                call.respondText("Grocery List created correctly", status = HttpStatusCode.Created)}
+                catch (e: Error) { print(e)}
             }
             get {
                 call.respondText("Display all grocery lists")
