@@ -1,6 +1,5 @@
 package org.pantry.models
 
-import java.util.UUID
 import kotlinx.serialization.Serializable
 
 @Serializable
