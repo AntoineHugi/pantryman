@@ -14,22 +14,35 @@ repositories {
 
 application {
    mainClass = "org.pantry.ApplicationKt"
+    mainClass.set("io.ktor.server.netty.EngineMain")
 }
 
 dependencies {
     val ktorVersion = "3.2.1"
     val logbackVersion = "1.5.6"
     val jUnitVersion = "5.10.0"
+    val hikariCPVersion="5.1.0"
+    val postgresqlVersion="42.7.3"
+    val flywayVersion="10.15.0"
 
+    // Ktor
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty")
-    implementation("ch.qos.logback:logback-classic:${logbackVersion}")
     implementation("io.ktor:ktor-server-core")
-    implementation("io.ktor:ktor-server-config-yaml")
-
+    implementation("io.ktor:ktor-server-config-yaml:2.3.4")
     implementation("io.ktor:ktor-server-content-negotiation:${ktorVersion}")
     implementation("io.ktor:ktor-serialization-kotlinx-json:${ktorVersion}")
 
+
+    // Flyway
+    implementation("org.flywaydb:flyway-core:${flywayVersion}")
+
+    // Hikari + JDBC
+    implementation("com.zaxxer:HikariCP:${hikariCPVersion}")
+    implementation("org.postgresql:postgresql:${postgresqlVersion}")
+
+    // Logging
+    implementation("ch.qos.logback:logback-classic:${logbackVersion}")
 
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.junit.jupiter:junit-jupiter:${jUnitVersion}")
