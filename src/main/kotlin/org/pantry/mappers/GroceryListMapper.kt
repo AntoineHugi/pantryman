@@ -3,9 +3,14 @@ package org.pantry.mappers
 import org.jetbrains.exposed.sql.ResultRow
 import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.models.GroceryList
+import org.pantry.repositories.ItemRepository
 
 // GroceryList mapper
-fun ResultRow.toGroceryList() = GroceryList(
-    id = this[GroceryListTable.id].toString(),
-    name = this[GroceryListTable.name]
-)
+fun ResultRow.toGroceryList(itemRepo: ItemRepository): GroceryList {
+    val listId = this[GroceryListTable.id]
+    return GroceryList(
+            id = this[GroceryListTable.id].toString(),
+            name = this[GroceryListTable.name],
+            items = itemRepo.getByListId(listId)
+    )
+}

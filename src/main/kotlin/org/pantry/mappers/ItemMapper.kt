@@ -11,6 +11,4 @@ fun ResultRow.toItem() = Item(
     quantity = this[ItemTable.quantity],
     isChecked = this[ItemTable.isChecked],
     isFavorite = this[ItemTable.isFavorite],
-    listID = this
-
 )
