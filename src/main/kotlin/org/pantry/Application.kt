@@ -5,8 +5,7 @@ import io.ktor.server.application.*
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.pantry.postgres.DatabaseFactory
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
