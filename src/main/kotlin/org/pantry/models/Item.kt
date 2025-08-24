@@ -11,4 +11,5 @@ data class Item(
     val isChecked: Boolean = false,
     val isFavorite: Boolean = false
 ) {
+
 }

@@ -6,6 +6,10 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.pantry.models.GroceryList
+import org.pantry.models.Item
+import org.pantry.services.GroceryListService
+import org.pantry.services.ItemService
+import java.util.UUID
 
 fun Application.menuApi() {
     routing {
@@ -24,43 +28,95 @@ fun Application.menuApi() {
 }
 
 fun Application.groceriesApi() {
+    val groceryListService = GroceryListService()
+    val itemService = ItemService()
     routing {
         route("/lists") {
             post {
-                try {val groceryList = call.receive<GroceryList>()
-                print(groceryList)
-                call.respondText("Grocery List created correctly", status = HttpStatusCode.Created)}
-                catch (e: Error) { print(e)}
+                val groceryList = call.receive<GroceryList>()
+                val created = groceryListService.create(groceryList.name)
+                call.respond(HttpStatusCode.Created, created)
             }
             get {
-                call.respondText("Display all grocery lists")
+                val lists = groceryListService.getAll()
+                call.respond(lists)
             }
             route("/{listId}") {
                 get {
-                    call.respondText("Display specific list by ID")
+                    val id = call.parameters["listId"]?.let { UUID.fromString(it) }
+                    if (id == null) {
+                        call.respond(HttpStatusCode.BadRequest, "Invalid ID")
+                        return@get
+                    }
+
+                    val list = groceryListService.getById(id)
+                    if (list == null) {
+                        call.respond(HttpStatusCode.NotFound, "List not found")
+                    } else {
+                        call.respond(list)
+                    }
                 }
                 put {
-                    call.respondText("Rename the list")
+                    val id = call.parameters["listId"]?.let { UUID.fromString(it) }
+                    if (id == null) {
+                        call.respond(HttpStatusCode.BadRequest, "Invalid ID")
+                        return@put
+                    }
+
+                    val body = call.receive<Map<String, String>>() // expects { "name": "New name" }
+                    val updated = groceryListService.update(id, body["name"] ?: "")
+                    if (updated) call.respond(HttpStatusCode.OK) else call.respond(HttpStatusCode.NotFound)
                 }
                 delete {
-                    call.respondText("Delete the list")
+                    val id = call.parameters["listId"]?.let { UUID.fromString(it) }
+                    if (id == null) {
+                        call.respond(HttpStatusCode.BadRequest, "Invalid ID")
+                        return@delete
+                    }
+                    val deleted = groceryListService.delete(id)
+                    if (deleted) call.respond(HttpStatusCode.NoContent)
+                    else call.respond(HttpStatusCode.NotFound)
                 }
-                post("/duplicate") {
-                    call.respondText("Duplicate the list")
-                }
+                /*post("/duplicate") {
+                    call.respondText("Duplicate the list") //not implemented yet
+                }*/
                 route("/items") {
                     post {
-                        call.respondText("Add item to list")
+                        val request = call.receive<Item>()
+                        val item = itemService.create(
+                            name = request.name,
+                            quantity = request.quantity,
+                            isChecked = request.isChecked,
+                            isFavorite = request.isFavorite
+                        )
+                        call.respond(HttpStatusCode.Created, item)
                     }
                     route("/{itemId}") {
                         delete {
-                            call.respondText("Delete item from list")
+                            val id = UUID.fromString(call.parameters["itemId"])
+                            val deleted = itemService.delete(id)
+                            if (deleted) call.respond(HttpStatusCode.NoContent)
+                            else call.respond(HttpStatusCode.NotFound, "Item not found")
                         }
                         post("/increase") {
-                            call.respondText("Increase item quantity")
+                            val id = UUID.fromString(call.parameters["itemId"])
+                            val item = itemService.getById(id)
+                            if (item != null) {
+                                itemService.update(id, item.name, item.quantity + 1, item.isChecked, item.isFavorite)
+                                call.respond(HttpStatusCode.OK, "Quantity increased")
+                            } else {
+                                call.respond(HttpStatusCode.NotFound, "Item not found")
+                            }
                         }
                         post("/decrease") {
-                            call.respondText("Decrease item quantity")
+                            val id = UUID.fromString(call.parameters["itemId"])
+                            val item = itemService.getById(id)
+                            if (item != null && item.quantity > 1) {
+                                itemService.update(id, item.name, item.quantity - 1, item.isChecked, item.isFavorite)
+                                call.respond(HttpStatusCode.OK, "Quantity decreased")
+                            } else {
+                                call.respond(HttpStatusCode.BadRequest, "Quantity cannot go below 1")
+                            }
                         }
                     }
                 }

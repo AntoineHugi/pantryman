@@ -24,6 +24,7 @@ dependencies {
     val hikariCPVersion="5.1.0"
     val postgresqlVersion="42.7.3"
     val flywayVersion="10.15.0"
+    val exposedVersion="0.54.0"
 
     // Ktor
     implementation("io.ktor:ktor-server-core-jvm")
@@ -40,6 +41,11 @@ dependencies {
     // Hikari + JDBC
     implementation("com.zaxxer:HikariCP:${hikariCPVersion}")
     implementation("org.postgresql:postgresql:${postgresqlVersion}")
+
+    // Exposed
+    implementation("org.jetbrains.exposed:exposed-core:${exposedVersion}")
+    implementation("org.jetbrains.exposed:exposed-dao:${exposedVersion}")
+    implementation("org.jetbrains.exposed:exposed-jdbc:${exposedVersion}")
 
     // Logging
     implementation("ch.qos.logback:logback-classic:${logbackVersion}")
