@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: db
+      POSTGRES_DB: pantryman
     ports:
       - "5432:5432"
     volumes:
@@ -25,6 +25,7 @@ services:
       - postgres
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin-servers.json:/pgadmin4/servers.json
 
 volumes:
   postgres_data:

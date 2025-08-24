@@ -35,10 +35,9 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:${ktorVersion}")
 
 
-    // Flyway
+    // Database
     implementation("org.flywaydb:flyway-core:${flywayVersion}")
-
-    // Hikari + JDBC
+    implementation("org.flywaydb:flyway-database-postgresql:${flywayVersion}")
     implementation("com.zaxxer:HikariCP:${hikariCPVersion}")
     implementation("org.postgresql:postgresql:${postgresqlVersion}")
 
