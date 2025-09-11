@@ -25,15 +25,16 @@ dependencies {
     val postgresqlVersion="42.7.3"
     val flywayVersion="10.15.0"
     val exposedVersion="0.54.0"
+    val mockkVersion="1.14.5"
+    val kotlinxVersion="1.6.0"
 
     // Ktor
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty")
     implementation("io.ktor:ktor-server-core")
-    implementation("io.ktor:ktor-server-config-yaml:2.3.4")
+    implementation("io.ktor:ktor-server-config-yaml:${ktorVersion}")
     implementation("io.ktor:ktor-server-content-negotiation:${ktorVersion}")
     implementation("io.ktor:ktor-serialization-kotlinx-json:${ktorVersion}")
-
 
     // Database
     implementation("org.flywaydb:flyway-core:${flywayVersion}")
@@ -49,9 +50,26 @@ dependencies {
     // Logging
     implementation("ch.qos.logback:logback-classic:${logbackVersion}")
 
-    testImplementation("io.ktor:ktor-server-test-host")
+    // Unit Tests
+    testImplementation("io.mockk:mockk:${mockkVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter:${jUnitVersion}")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${jUnitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:${jUnitVersion}")
+
+    testImplementation("io.ktor:ktor-server-test-host")
+    testImplementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json:${ktorVersion}")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${kotlinxVersion}")
+    testImplementation("io.ktor:ktor-client-mock:${ktorVersion}")
+
+
+
+
+
+
     testImplementation(kotlin("test"))
+
+
 }
 
 tasks.test {
