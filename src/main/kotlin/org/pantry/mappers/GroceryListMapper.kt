@@ -9,7 +9,7 @@ import org.pantry.repositories.ItemRepository
 fun ResultRow.toGroceryList(itemRepo: ItemRepository): GroceryList {
     val listId = this[GroceryListTable.id]
     return GroceryList(
-            id = this[GroceryListTable.id].toString(),
+            id = listId.toString(),
             name = this[GroceryListTable.name],
             items = itemRepo.getByListId(listId)
     )
