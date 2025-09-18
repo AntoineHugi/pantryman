@@ -5,7 +5,7 @@ import org.pantry.repositories.GroceryListRepository
 import java.util.UUID
 
 class GroceryListService(
-    private val repo: GroceryListRepository = GroceryListRepository()
+    private val repo: GroceryListRepository
 ) {
     fun getAll(): List<GroceryList> = repo.getAll()
     fun getById(id: UUID): GroceryList? = repo.getById(id)
