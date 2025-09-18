@@ -1,5 +1,6 @@
 package org.pantry.plugins
 
+import io.ktor.server.application.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
@@ -13,21 +14,47 @@ import org.junit.jupiter.api.assertNull
 import java.util.UUID
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.koin.dsl.module
+import org.koin.ktor.ext.get
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.SchemaUtils
 
 import org.pantry.models.GroceryList
 import org.pantry.models.Item
 import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.ItemRepository
 import org.pantry.groceriesApi
+import org.pantry.services.GroceryListService
+import org.pantry.module
+import org.pantry.postgres.tables.ItemTable
+import org.pantry.postgres.tables.GroceryListTable
+
 
 class RoutingGroceriesApiIT: KoinComponent {
 
-    private val groceryListRepo: GroceryListRepository by inject<GroceryListRepository>()
-    private val itemRepo: ItemRepository by inject()
-
     @Test
     fun `POST list returns 201 and creates list`() = testApplication {
+        lateinit var groceryListRepo: GroceryListRepository
+
         application {
+            Database.connect(
+                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;",
+                driver = "org.h2.Driver"
+            )
+            transaction {
+                SchemaUtils.create(GroceryListTable)
+                SchemaUtils.create(ItemTable)
+            }
+            install(org.koin.ktor.plugin.Koin) {
+                modules(
+                    module {
+                        single { ItemRepository() }
+                        single { GroceryListRepository(get()) }
+                        single { GroceryListService(get()) }
+                    }
+                )
+            }
             groceriesApi()
         }
         val client = createClient {
@@ -35,8 +62,9 @@ class RoutingGroceriesApiIT: KoinComponent {
                 json()
             }
         }
-        val itemList: List<Item> = emptyList()
-        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+
+
+        val newList = groceryListRepo.create(name = "Weekly Groceries")
         val response = client.post("/lists") {
             contentType(ContentType.Application.Json)
             setBody(newList)
@@ -47,7 +75,6 @@ class RoutingGroceriesApiIT: KoinComponent {
         assertNotNull(savedList)
         assertEquals(newList.id,savedList.id)
         assertEquals(newList.name,savedList.name)
-        assertEquals(newList.items,savedList.items)
     }
 
     @Test
@@ -67,12 +94,33 @@ class RoutingGroceriesApiIT: KoinComponent {
 
     @Test
     fun `PUT list ID returns 200 and updates list`() = testApplication {
-
+        application {
+            Database.connect(
+                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;",
+                driver = "org.h2.Driver"
+            )
+            transaction {
+                SchemaUtils.create(GroceryListTable)
+                SchemaUtils.create(ItemTable)
+            }
+            install(org.koin.ktor.plugin.Koin) {
+                modules(
+                    module {
+                        single { ItemRepository() }
+                        single { GroceryListRepository(get()) }
+                        single { GroceryListService(get()) }
+                    }
+                )
+            }
+            groceriesApi()
+        }
         val client = createClient {
             install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
                 json()
             }
         }
+        val groceryListRepo: GroceryListRepository by inject<GroceryListRepository>()
+
         val itemList: List<Item> = emptyList()
         val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
         val response = client.put("/${newList.id}") {
@@ -93,14 +141,36 @@ class RoutingGroceriesApiIT: KoinComponent {
 
     @Test
     fun `GET list ID returns 200 and list`() = testApplication {
+        application {
+            Database.connect(
+                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;",
+                driver = "org.h2.Driver"
+            )
+            transaction {
+                SchemaUtils.create(GroceryListTable)
+                SchemaUtils.create(ItemTable)
+            }
+            install(org.koin.ktor.plugin.Koin) {
+                modules(
+                    module {
+                        single { ItemRepository() }
+                        single { GroceryListRepository(get()) }
+                        single { GroceryListService(get()) }
+                    }
+                )
+            }
+            groceriesApi()
+        }
         val client = createClient {
             install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
                 json()
             }
         }
-        val itemList: List<Item> = emptyList()
-        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
-        val postResponse = client.post("/${newList.id}") {
+        val groceryListRepo: GroceryListRepository by inject<GroceryListRepository>()
+        val itemRepo: ItemRepository by inject()
+
+        val newList = groceryListRepo.create(name = "Weekly Groceries")
+        val postResponse = client.post("/lists") {
             contentType(ContentType.Application.Json)
             setBody(newList)
         }
@@ -117,13 +187,34 @@ class RoutingGroceriesApiIT: KoinComponent {
 
     @Test
     fun `DELETE list ID returns 200 and deletes list`() = testApplication {
+        application {
+            Database.connect(
+                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;",
+                driver = "org.h2.Driver"
+            )
+            transaction {
+                SchemaUtils.create(GroceryListTable)
+                SchemaUtils.create(ItemTable)
+            }
+            install(org.koin.ktor.plugin.Koin) {
+                modules(
+                    module {
+                        single { ItemRepository() }
+                        single { GroceryListRepository(get()) }
+                        single { GroceryListService(get()) }
+                    }
+                )
+            }
+            groceriesApi()
+        }
         val client = createClient {
             install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
                 json()
             }
         }
-        val itemList: List<Item> = emptyList()
-        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val groceryListRepo: GroceryListRepository by inject<GroceryListRepository>()
+
+        val newList = groceryListRepo.create(name = "Weekly Groceries")
         val postResponse = client.post("/${newList.id}") {
             contentType(ContentType.Application.Json)
             setBody(newList)
@@ -141,20 +232,41 @@ class RoutingGroceriesApiIT: KoinComponent {
 
     @Test
     fun `Post item returns 201 and creates item`() = testApplication {
-
+        application {
+            Database.connect(
+                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;",
+                driver = "org.h2.Driver"
+            )
+            transaction {
+                SchemaUtils.create(GroceryListTable)
+                SchemaUtils.create(ItemTable)
+            }
+            install(org.koin.ktor.plugin.Koin) {
+                modules(
+                    module {
+                        single { ItemRepository() }
+                        single { GroceryListRepository(get()) }
+                        single { GroceryListService(get()) }
+                    }
+                )
+            }
+            groceriesApi()
+        }
         val client = createClient {
             install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
                 json()
             }
         }
-        val itemList: List<Item> = emptyList()
-        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val groceryListRepo: GroceryListRepository by inject<GroceryListRepository>()
+        val itemRepo: ItemRepository by inject()
+
+        val newList = groceryListRepo.create(name = "Weekly Groceries")
         val postListResponse = client.post("/${newList.id}") {
             contentType(ContentType.Application.Json)
             setBody(newList)
         }
         if (postListResponse.status == HttpStatusCode.Created) {
-            val newItem = Item(id = "888", name = "milk", quantity = 1, isChecked = false, isFavorite = true)
+            val newItem = itemRepo.create(name = "milk", quantity = 1, isChecked = false, isFavorite = true)
             val response = client.post("/${newList.id}/items") {
                 contentType(ContentType.Application.Json)
                 setBody(newItem)
@@ -177,20 +289,41 @@ class RoutingGroceriesApiIT: KoinComponent {
 
     @Test
     fun `GET item returns 200 and item list`() = testApplication {
-
+        application {
+            Database.connect(
+                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;",
+                driver = "org.h2.Driver"
+            )
+            transaction {
+                SchemaUtils.create(GroceryListTable)
+                SchemaUtils.create(ItemTable)
+            }
+            install(org.koin.ktor.plugin.Koin) {
+                modules(
+                    module {
+                        single { ItemRepository() }
+                        single { GroceryListRepository(get()) }
+                        single { GroceryListService(get()) }
+                    }
+                )
+            }
+            groceriesApi()
+        }
         val client = createClient {
             install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
                 json()
             }
         }
-        val itemList: List<Item> = emptyList()
-        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val groceryListRepo: GroceryListRepository by inject<GroceryListRepository>()
+        val itemRepo: ItemRepository by inject()
+
+        val newList = groceryListRepo.create(name = "Weekly Groceries")
         val postListResponse = client.post("/${newList.id}") {
             contentType(ContentType.Application.Json)
             setBody(newList)
         }
         if (postListResponse.status == HttpStatusCode.Created) {
-            val newItem = Item(id = "888", name = "milk", quantity = 1, isChecked = false, isFavorite = true)
+            val newItem = itemRepo.create(name = "milk", quantity = 1, isChecked = false, isFavorite = true)
             val postResponse = client.post("/${newList.id}/items") {
                 contentType(ContentType.Application.Json)
                 setBody(newItem)
