@@ -6,13 +6,10 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.pantry.models.GroceryList
 import org.pantry.postgres.tables.GroceryListTable
-import org.pantry.mappers.toGroceryList
 import java.util.UUID
-import org.pantry.repositories.ItemRepository
-
 
 class GroceryListRepository(
-    private val itemRepo: ItemRepository = ItemRepository()
+    private val itemRepo: ItemRepository
 ) {
     fun getAll(): List<GroceryList> = transaction {
         GroceryListTable.selectAll().map { row ->

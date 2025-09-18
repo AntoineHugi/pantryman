@@ -27,6 +27,7 @@ dependencies {
     val exposedVersion="0.54.0"
     val mockkVersion="1.14.5"
     val kotlinxVersion="1.6.0"
+    val koinVersion="4.1.0"
 
     // Ktor
     implementation("io.ktor:ktor-server-core-jvm")
@@ -50,6 +51,13 @@ dependencies {
     // Logging
     implementation("ch.qos.logback:logback-classic:${logbackVersion}")
 
+    // Koin
+    implementation("io.insert-koin:koin-core:${koinVersion}")
+    implementation("io.insert-koin:koin-ktor:${koinVersion}")
+    implementation("io.insert-koin:koin-logger-slf4j:${koinVersion}")
+    testImplementation("io.insert-koin:koin-test:${koinVersion}")
+    testImplementation("io.insert-koin:koin-test-junit5:${koinVersion}")
+
     // Unit Tests
     testImplementation("io.mockk:mockk:${mockkVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter:${jUnitVersion}")
@@ -61,9 +69,6 @@ dependencies {
     testImplementation("io.ktor:ktor-serialization-kotlinx-json:${ktorVersion}")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${kotlinxVersion}")
     testImplementation("io.ktor:ktor-client-mock:${ktorVersion}")
-
-
-
 
 
 

@@ -2,21 +2,56 @@ package org.pantry.plugins
 
 import io.ktor.client.call.*
 import io.ktor.client.request.*
-import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
+import org.junit.jupiter.api.assertNotNull
+import org.junit.jupiter.api.assertNull
+import java.util.UUID
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 import org.pantry.models.GroceryList
+import org.pantry.models.Item
+import org.pantry.repositories.GroceryListRepository
+import org.pantry.repositories.ItemRepository
+import org.pantry.groceriesApi
 
-class RoutingGroceriesApiIT {
+class RoutingGroceriesApiIT: KoinComponent {
+
+    private val groceryListRepo: GroceryListRepository by inject<GroceryListRepository>()
+    private val itemRepo: ItemRepository by inject()
 
     @Test
-    fun `GET grocery List returns 200 and JSON body`() = testApplication {
+    fun `POST list returns 201 and creates list`() = testApplication {
+        application {
+            groceriesApi()
+        }
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
+        val itemList: List<Item> = emptyList()
+        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val response = client.post("/lists") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+
+        assertEquals(HttpStatusCode.Created, response.status)
+        val savedList = groceryListRepo.getById(UUID.fromString(newList.id))
+        assertNotNull(savedList)
+        assertEquals(newList.id,savedList.id)
+        assertEquals(newList.name,savedList.name)
+        assertEquals(newList.items,savedList.items)
+    }
+
+    @Test
+    fun `GET grocery List returns 200 and grocery lists`() = testApplication {
         val client = createClient {
             install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
                 json()
@@ -28,5 +63,147 @@ class RoutingGroceriesApiIT {
         assertEquals(HttpStatusCode.OK, response.status)
         val groceryLists: List<GroceryList> = response.body()
         assertTrue(groceryLists.isNotEmpty())
+    }
+
+    @Test
+    fun `PUT list ID returns 200 and updates list`() = testApplication {
+
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
+        val itemList: List<Item> = emptyList()
+        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val response = client.put("/${newList.id}") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val groceryList: GroceryList = response.body()
+        assertEquals(newList.id, groceryList.id)
+
+        val savedList = groceryListRepo.getById(UUID.fromString(newList.id))
+        assertNotNull(savedList)
+        assertEquals(newList.id,savedList.id)
+        assertEquals(newList.name,savedList.name)
+        assertEquals(newList.items,savedList.items)
+    }
+
+    @Test
+    fun `GET list ID returns 200 and list`() = testApplication {
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
+        val itemList: List<Item> = emptyList()
+        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val postResponse = client.post("/${newList.id}") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+        if (postResponse.status == HttpStatusCode.Created) {
+            val response = client.get("/${newList.id}")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            val groceryList: GroceryList = response.body()
+            assertEquals(newList.id, groceryList.id)
+        }
+        else
+            print("error with post request")
+    }
+
+    @Test
+    fun `DELETE list ID returns 200 and deletes list`() = testApplication {
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
+        val itemList: List<Item> = emptyList()
+        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val postResponse = client.post("/${newList.id}") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+        if (postResponse.status == HttpStatusCode.Created) {
+            val response = client.delete("/${newList.id}")
+
+            assertEquals(HttpStatusCode.NoContent, response.status)
+            val savedList = groceryListRepo.getById(UUID.fromString(newList.id))
+            assertNull(savedList)
+        }
+        else
+            print("error with post request")
+    }
+
+    @Test
+    fun `Post item returns 201 and creates item`() = testApplication {
+
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
+        val itemList: List<Item> = emptyList()
+        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val postListResponse = client.post("/${newList.id}") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+        if (postListResponse.status == HttpStatusCode.Created) {
+            val newItem = Item(id = "888", name = "milk", quantity = 1, isChecked = false, isFavorite = true)
+            val response = client.post("/${newList.id}/items") {
+                contentType(ContentType.Application.Json)
+                setBody(newItem)
+            }
+            assertEquals(HttpStatusCode.Created, response.status)
+            val savedList = groceryListRepo.getById(UUID.fromString(newList.id))
+            assertNotNull(savedList)
+            val savedItem = itemRepo.getById(UUID.fromString(newItem.id))
+            assertNotNull(savedItem)
+            assertTrue(savedList.items.contains(savedItem))
+            assertEquals(newItem.id, savedItem.id)
+            assertEquals(newItem.name, savedItem.name)
+            assertEquals(newItem.quantity, savedItem.quantity)
+            assertEquals(newItem.isChecked, savedItem.isChecked)
+            assertEquals(newItem.isFavorite, savedItem.isFavorite)
+        }
+        else
+            print("error with list post request")
+    }
+
+    @Test
+    fun `GET item returns 200 and item list`() = testApplication {
+
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
+        val itemList: List<Item> = emptyList()
+        val newList = GroceryList(id = "999", name = "Weekly Groceries", items = itemList)
+        val postListResponse = client.post("/${newList.id}") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+        if (postListResponse.status == HttpStatusCode.Created) {
+            val newItem = Item(id = "888", name = "milk", quantity = 1, isChecked = false, isFavorite = true)
+            val postResponse = client.post("/${newList.id}/items") {
+                contentType(ContentType.Application.Json)
+                setBody(newItem)
+            }
+            if (postResponse.status == HttpStatusCode.Created) {
+                val response = client.get("/${newList.id}/items")
+                assertEquals(HttpStatusCode.OK, response.status)
+                val savedItemList: List<Item> = response.body()
+                assertNotNull(savedItemList)
+                assertEquals(newList.items, savedItemList)
+            }
+        }
+        else
+            print("error with list post request")
     }
 }
