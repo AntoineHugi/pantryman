@@ -1,5 +1,7 @@
 package org.pantry
 
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.request.receive
@@ -32,6 +34,11 @@ fun Application.menuApi() {
 fun Application.groceriesApi() {
     val groceryListService by inject <GroceryListService>()
     val itemService by inject <ItemService>()
+
+    install(ContentNegotiation) {
+        json()
+    }
+
     routing {
         route("/lists") {
             post {
