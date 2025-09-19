@@ -4,6 +4,13 @@ import java.util.UUID
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class CreateItemRequest(
+    val listId: String,
+    val name: String,
+    val quantity: Int
+)
+
+@Serializable
 data class Item(
     val id: String,
     val name: String,
