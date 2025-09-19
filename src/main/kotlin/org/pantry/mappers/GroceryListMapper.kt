@@ -5,7 +5,6 @@ import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.models.GroceryList
 import org.pantry.repositories.ItemRepository
 
-// GroceryList mapper
 fun ResultRow.toGroceryList(itemRepo: ItemRepository): GroceryList {
     val listId = this[GroceryListTable.id]
     return GroceryList(

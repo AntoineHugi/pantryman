@@ -1,8 +1,6 @@
 package org.pantry.models
 
 import kotlinx.serialization.Serializable
-import java.util.UUID
-//import kotlin.uuid.Uuid
 
 @Serializable
 data class CreateGroceryListRequest(

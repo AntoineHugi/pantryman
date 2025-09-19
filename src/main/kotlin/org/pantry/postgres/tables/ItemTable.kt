@@ -2,8 +2,6 @@ package org.pantry.postgres.tables
 
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.ReferenceOption
-import org.pantry.postgres.tables.GroceryListTable
-import java.util.UUID
 
 object ItemTable : Table("items") {
     val id = uuid("id").autoGenerate().uniqueIndex()
