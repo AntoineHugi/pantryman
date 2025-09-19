@@ -6,9 +6,7 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
-import org.pantry.models.GroceryList
 import org.pantry.models.CreateGroceryListRequest
-import org.pantry.models.Item
 import org.pantry.models.CreateItemRequest
 import org.pantry.services.GroceryListService
 import org.pantry.services.ItemService
