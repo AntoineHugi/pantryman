@@ -10,12 +10,16 @@ import org.pantry.mappers.toItem
 import java.util.UUID
 
 class ItemRepository {
-    fun getAll(): List<Item> = transaction {
-        ItemTable.selectAll().map { it.toItem() }
+    fun getAll(id: UUID): List<Item> = transaction {
+        ItemTable
+            .selectAll()
+            .where { ItemTable.listId eq id }
+            .map { it.toItem() }
     }
 
     fun getById(id: UUID): Item? = transaction {
-        ItemTable.selectAll().where { ItemTable.id eq id }
+        ItemTable.selectAll()
+            .where { ItemTable.id eq id }
             .map { it.toItem() }
             .singleOrNull()
     }
@@ -33,16 +37,18 @@ class ItemRepository {
             }
     }
 
-    fun create(name: String, quantity: Int, isChecked: Boolean, isFavorite: Boolean): Item = transaction {
+    fun create(listId: String, name: String, quantity: Int): Item = transaction {
         val newId = UUID.randomUUID()
+        val initBool = false
         ItemTable.insert {
             it[id] = newId
             it[ItemTable.name] = name
             it[ItemTable.quantity] = quantity
-            it[ItemTable.isChecked] = isChecked
-            it[ItemTable.isFavorite] = isFavorite
+            it[ItemTable.isChecked] = initBool
+            it[ItemTable.isFavorite] = initBool
+            it[ItemTable.listId] = UUID.fromString(listId)
         }
-        Item(newId.toString(), name, quantity, isChecked, isFavorite)
+        Item(newId.toString(), name, quantity, initBool, initBool)
     }
 
     fun update(id: UUID, name: String, quantity: Int, isChecked: Boolean, isFavorite: Boolean): Boolean = transaction {

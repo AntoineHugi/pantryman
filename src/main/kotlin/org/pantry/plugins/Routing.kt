@@ -9,6 +9,7 @@ import org.koin.ktor.ext.inject
 import org.pantry.models.GroceryList
 import org.pantry.models.CreateGroceryListRequest
 import org.pantry.models.Item
+import org.pantry.models.CreateItemRequest
 import org.pantry.services.GroceryListService
 import org.pantry.services.ItemService
 import java.util.UUID
@@ -87,14 +88,22 @@ fun Application.groceriesApi() {
                 }*/
                 route("/items") {
                     post {
-                        val request = call.receive<Item>()
+                        val request = call.receive<CreateItemRequest>()
                         val item = itemService.create(
+                            listId = request.listId,
                             name = request.name,
-                            quantity = request.quantity,
-                            isChecked = request.isChecked,
-                            isFavorite = request.isFavorite
+                            quantity = request.quantity
                         )
                         call.respond(HttpStatusCode.Created, item)
+                    }
+                    get {
+                        val id = call.parameters["listId"]?.let { UUID.fromString(it) }
+                        if (id == null) {
+                            call.respond(HttpStatusCode.BadRequest, "Invalid ID")
+                            return@get
+                        }
+                        val itemList = itemService.getAll(id)
+                        call.respond(itemList)
                     }
                     route("/{itemId}") {
                         delete {
