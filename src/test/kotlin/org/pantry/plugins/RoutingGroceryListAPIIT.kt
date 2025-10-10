@@ -28,7 +28,6 @@ import org.pantry.models.CreateGroceryListRequest
 import org.pantry.models.Item
 import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.ItemRepository
-import org.pantry.groceriesApi
 import org.pantry.models.CreateItemRequest
 import org.pantry.services.GroceryListService
 import org.pantry.services.ItemService
@@ -64,7 +63,7 @@ class RoutingGroceriesApiIT : KoinTest {
     private val itemRepo: ItemRepository by inject()
 
     @Test
-    fun `POST list returns 201 and creates list`() = testApplication {
+    fun `POST grocery list returns 201 and creates list`() = testApplication {
         application {
             install(ContentNegotiation) {
                 json()
@@ -76,7 +75,6 @@ class RoutingGroceriesApiIT : KoinTest {
                 json()
             }
         }
-
         val newList = CreateGroceryListRequest(name = "Weekly Groceries")
         val response = client.post("/lists") {
             contentType(ContentType.Application.Json)
@@ -105,7 +103,6 @@ class RoutingGroceriesApiIT : KoinTest {
                 json()
             }
         }
-
         val newList = CreateGroceryListRequest(name = "Weekly Groceries")
         val postResponse = client.post("/lists") {
             contentType(ContentType.Application.Json)
@@ -116,45 +113,10 @@ class RoutingGroceriesApiIT : KoinTest {
         assertEquals(HttpStatusCode.OK, getResponse.status)
         val groceryLists: List<GroceryList> = getResponse.body()
         assertTrue(groceryLists.isNotEmpty())
-
     }
 
     @Test
-    fun `PUT list ID returns 200 and updates list`() = testApplication {
-        application {
-            install(ContentNegotiation) {
-                json()
-            }
-            groceriesApi()
-        }
-        val client = createClient {
-            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
-                json()
-            }
-        }
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
-        val postResponse = client.post("/lists") {
-            contentType(ContentType.Application.Json)
-            setBody(newList)
-        }
-        assertEquals(HttpStatusCode.Created, postResponse.status)
-        val createdList: GroceryList = postResponse.body()
-        assertNotNull(createdList)
-        assertEquals(newList.name, createdList.name)
-        val newName = "Daily Groceries"
-        val putResponse = client.put("/lists/${createdList.id}") {
-            contentType(ContentType.Application.Json)
-            setBody(mapOf("name" to newName))
-        }
-        assertEquals(HttpStatusCode.OK, putResponse.status)
-        val savedList = groceryListRepo.getById(UUID.fromString(createdList.id))
-        assertNotNull(savedList)
-        assertEquals(newName, savedList.name)
-
-    }
-
-    @Test
-    fun `GET list ID returns 200 and list`() = testApplication {
+    fun `GET grocery list ID returns 200 and list`() = testApplication {
         application {
             install(ContentNegotiation) {
                 json()
@@ -185,7 +147,7 @@ class RoutingGroceriesApiIT : KoinTest {
     }
 
     @Test
-    fun `DELETE list ID returns 200 and deletes list`() = testApplication {
+    fun `PATCH grocery list ID returns 200 and updates list`() = testApplication {
         application {
             install(ContentNegotiation) {
                 json()
@@ -197,7 +159,39 @@ class RoutingGroceriesApiIT : KoinTest {
                 json()
             }
         }
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postResponse = client.post("/lists") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+        assertEquals(HttpStatusCode.Created, postResponse.status)
+        val createdList: GroceryList = postResponse.body()
+        assertNotNull(createdList)
+        assertEquals(newList.name, createdList.name)
+        val newName = "Daily Groceries"
+        val patchResponse = client.patch("/lists/${createdList.id}") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("name" to newName))
+        }
+        assertEquals(HttpStatusCode.OK, patchResponse.status)
+        val savedList = groceryListRepo.getById(UUID.fromString(createdList.id))
+        assertNotNull(savedList)
+        assertEquals(newName, savedList.name)
+    }
 
+    @Test
+    fun `DELETE grocery list ID returns 200 and deletes list`() = testApplication {
+        application {
+            install(ContentNegotiation) {
+                json()
+            }
+            groceriesApi()
+        }
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
         val newList = CreateGroceryListRequest(name = "Weekly Groceries")
         val postResponse = client.post("/lists") {
             contentType(ContentType.Application.Json)
@@ -247,11 +241,10 @@ class RoutingGroceriesApiIT : KoinTest {
         assertTrue(savedList.items.contains(createdItem))
         assertEquals(newItem.name, createdItem.name)
         assertEquals(newItem.quantity, createdItem.quantity)
-
     }
 
     @Test
-    fun `GET item returns 200 and item list`() = testApplication {
+    fun `GET items returns 200 and item list`() = testApplication {
         application {
             install(ContentNegotiation) {
                 json()
@@ -290,5 +283,86 @@ class RoutingGroceriesApiIT : KoinTest {
         val savedList = groceryListRepo.getById(UUID.fromString(createdList.id))
         assertNotNull(savedList)
         assertEquals(savedList.items, savedItemList)
+    }
+
+    @Test
+    fun `DELETE item ID returns 200 and deletes item`() = testApplication {
+        application {
+            install(ContentNegotiation) {
+                json()
+            }
+            groceriesApi()
+        }
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postListResponse = client.post("/lists") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+        assertEquals(HttpStatusCode.Created, postListResponse.status)
+        val createdList: GroceryList = postListResponse.body()
+        assertNotNull(createdList)
+        assertEquals(newList.name, createdList.name)
+        val newItem = CreateItemRequest(listId = createdList.id, name = "milk", quantity = 1)
+        val postItemResponse = client.post("/lists/${createdList.id}/items") {
+            contentType(ContentType.Application.Json)
+            setBody(newItem)
+        }
+        assertEquals(HttpStatusCode.Created, postItemResponse.status)
+        val createdItem : Item = postItemResponse.body()
+        assertNotNull(createdItem)
+        assertEquals(newItem.name, createdItem.name)
+        val response = client.delete("/lists/${createdList.id}/items/${createdItem.id}")
+        assertEquals(HttpStatusCode.NoContent, response.status)
+        val deletedItem = itemRepo.getById(UUID.fromString(createdItem.id))
+        assertNull(deletedItem)
+    }
+
+    @Test
+    fun `PATCH item ID returns 200 and updates item`() = testApplication {
+        application {
+            install(ContentNegotiation) {
+                json()
+            }
+            groceriesApi()
+        }
+        val client = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postListResponse = client.post("/lists") {
+            contentType(ContentType.Application.Json)
+            setBody(newList)
+        }
+        assertEquals(HttpStatusCode.Created, postListResponse.status)
+        val createdList: GroceryList = postListResponse.body()
+        assertNotNull(createdList)
+        assertEquals(newList.name, createdList.name)
+        val newItem = CreateItemRequest(listId = createdList.id, name = "milk", quantity = 1)
+        val postItemResponse = client.post("/lists/${createdList.id}/items") {
+            contentType(ContentType.Application.Json)
+            setBody(newItem)
+        }
+        assertEquals(HttpStatusCode.Created, postItemResponse.status)
+        val createdItem : Item = postItemResponse.body()
+        assertNotNull(createdItem)
+        assertEquals(newItem.name, createdItem.name)
+        val newName = "eggs"
+        val patchResponse = client.patch("/lists/${createdList.id}/items/${createdItem.id}") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf(
+                "newName" to newName
+            ))
+        }
+        assertEquals(HttpStatusCode.OK, patchResponse.status)
+        val updatedItemName = itemRepo.getById(UUID.fromString(createdItem.id))
+        assertNotNull(updatedItemName)
+        assertEquals(newName, updatedItemName.name)
     }
 }

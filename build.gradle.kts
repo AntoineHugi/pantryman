@@ -28,6 +28,7 @@ dependencies {
     val mockkVersion="1.14.5"
     val kotlinxVersion="1.6.0"
     val koinVersion="4.1.0"
+    val ktorCorsVersion="3.2.3"
 
     // Ktor
     implementation("io.ktor:ktor-server-core-jvm")
@@ -51,6 +52,11 @@ dependencies {
 
     // Logging
     implementation("ch.qos.logback:logback-classic:${logbackVersion}")
+
+    // CORS
+    implementation("io.ktor:ktor-server-cors:${ktorCorsVersion}")
+
+
 
     // Koin
     implementation("io.insert-koin:koin-core:${koinVersion}")

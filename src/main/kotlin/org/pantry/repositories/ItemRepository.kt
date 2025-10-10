@@ -37,9 +37,7 @@ class ItemRepository {
             }
     }
 
-    fun create(listId: String, name: String, quantity: Int): Item = transaction {
-        val newId = UUID.randomUUID()
-        val initBool = false
+    fun create(newId: UUID,listId: String, name: String, quantity: Int, initBool : Boolean): Item = transaction {
         ItemTable.insert {
             it[id] = newId
             it[ItemTable.name] = name

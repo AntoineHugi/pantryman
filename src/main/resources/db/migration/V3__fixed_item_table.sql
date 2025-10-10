@@ -1,0 +1,5 @@
+ALTER TABLE item_list
+    ADD COLUMN quantity INT DEFAULT 1,
+    ADD COLUMN is_checked BOOLEAN DEFAULT FALSE,
+    ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE,
+    ADD COLUMN list_id UUID;

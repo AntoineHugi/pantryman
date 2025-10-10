@@ -7,7 +7,7 @@ import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-class RoutingMenuApiIT {
+class RoutingMenuAPIIT {
 
     @Test
     fun `GET menu returns 200 and JSON body`() = testApplication {
