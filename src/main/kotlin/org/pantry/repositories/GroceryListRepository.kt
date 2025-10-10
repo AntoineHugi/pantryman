@@ -35,8 +35,7 @@ class GroceryListRepository(
             .singleOrNull()
     }
 
-    fun create(name: String): GroceryList = transaction {
-        val newId = UUID.randomUUID()
+    fun create(newId: UUID, name: String): GroceryList = transaction {
         GroceryListTable.insert {
             it[id] = newId
             it[GroceryListTable.name] = name
