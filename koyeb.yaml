@@ -1,6 +1,8 @@
 name: pantryman
 build:
-  builder: heroku/buildpacks:20
-  build_command: ./gradlew stage
+  type: docker
 run:
-  command: ./build/install/pantryman/bin/pantryman
+  cmd: ./bin/pantryman
+  ports:
+    - port: 8080
+      protocol: http
