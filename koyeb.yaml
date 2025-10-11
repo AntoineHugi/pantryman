@@ -1,0 +1,6 @@
+name: pantryman
+build:
+  builder: heroku/buildpacks:20
+  build_command: ./gradlew stage
+run:
+  command: ./build/install/pantryman/bin/pantryman
