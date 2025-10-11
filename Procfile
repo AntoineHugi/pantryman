@@ -1,1 +1,1 @@
-web: ./build/install/pantry/bin/pantry
+web: ./build/install/pantryman/bin/pantryman
