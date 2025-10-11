@@ -356,9 +356,7 @@ class RoutingGroceriesApiIT : KoinTest {
         val newName = "eggs"
         val patchResponse = client.patch("/lists/${createdList.id}/items/${createdItem.id}") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf(
-                "newName" to newName
-            ))
+            setBody(mapOf("name" to newName))
         }
         assertEquals(HttpStatusCode.OK, patchResponse.status)
         val updatedItemName = itemRepo.getById(UUID.fromString(createdItem.id))
