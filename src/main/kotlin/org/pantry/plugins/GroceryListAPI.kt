@@ -91,7 +91,7 @@ fun Application.groceriesApi() {
                             if (deleted) call.respond(HttpStatusCode.NoContent)
                             else call.respond(HttpStatusCode.NotFound, "Item not found")
                         }
-                        patch("/{itemId}") {
+                        patch {
                             val id = call.parameters["itemId"]?.let(UUID::fromString)
                                 ?: return@patch call.respond(HttpStatusCode.BadRequest, "Invalid ID")
                             val request = call.receive<ItemUpdateRequest>()

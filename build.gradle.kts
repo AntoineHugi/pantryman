@@ -77,12 +77,13 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${kotlinxVersion}")
     testImplementation("io.ktor:ktor-client-mock:${ktorVersion}")
 
-
     testImplementation(kotlin("test"))
-
-
 }
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.register("stage") {
+    dependsOn("installDist")
 }
