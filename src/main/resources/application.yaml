@@ -6,6 +6,6 @@ ktor:
     port: 8080
 
 db:
-  url: "jdbc:postgresql://localhost:5432/pantryman"
-  user: "user"
-  password: "password"
+  url: ${DB_URL:"jdbc:postgresql://localhost:5432/pantryman"}
+  user: ${DB_USER:"user"}
+  password: ${DB_PASSWORD:"password"}
