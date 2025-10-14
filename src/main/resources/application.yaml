@@ -3,7 +3,7 @@ ktor:
     modules:
       - org.pantry.ApplicationKt.module
   deployment:
-    port: 8080
+    port: 8000
 
 db:
   url: ${DB_URL:"jdbc:postgresql://localhost:5432/pantryman"}
