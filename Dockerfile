@@ -7,6 +7,6 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=build /app/build/install/pantryman /app
 
-EXPOSE 8080
+EXPOSE 8000
 
 CMD ["./bin/pantryman"]
