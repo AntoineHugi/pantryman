@@ -6,9 +6,11 @@ import io.mockk.verify
 import org.jetbrains.exposed.sql.ResultRow
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.pantry.postgres.tables.GroceryListTable
+import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.ItemRepository
+import org.pantry.models.GroceryList
 import org.pantry.models.Item
+import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.postgres.tables.ItemTable
 import java.util.UUID
 
