@@ -1,4 +1,4 @@
-package org.pantry.repositories
+package org.pantry.services
 
 import io.mockk.every
 import io.mockk.mockk
@@ -8,12 +8,12 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.pantry.models.Item
 import org.pantry.repositories.ItemRepository
-import org.pantry.postgres.tables.GroceryListTable
+import org.pantry.services.ItemService
 import org.pantry.postgres.tables.ItemTable
 import java.util.UUID
 
 
-class ItemRepositoryTest {
+class ItemServiceTest {
 
     @Test
     fun `getAll returns full list`() {
@@ -39,5 +39,4 @@ class ItemRepositoryTest {
     fun `delete deletes item`() {
 
     }
-
 }
