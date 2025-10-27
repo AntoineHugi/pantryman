@@ -80,7 +80,7 @@ class GroceryListRepositoryTest {
     }
 
     @Test
-    fun `4 - update updates item correctly`() {
+    fun `4 - update updates list correctly`() {
         val listId = UUID.randomUUID()
         val created = repo.create(UUID.randomUUID(), "Groceries")
         val id = UUID.fromString(created.id)
@@ -94,7 +94,7 @@ class GroceryListRepositoryTest {
     }
 
     @Test
-    fun `5 - delete deletes item`() {
+    fun `5 - delete deletes list`() {
         val listId = UUID.randomUUID()
         val created = repo.create(UUID.randomUUID(), "Groceries")
         val id = UUID.fromString(created.id)
