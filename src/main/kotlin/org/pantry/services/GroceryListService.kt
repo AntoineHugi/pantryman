@@ -16,7 +16,13 @@ class GroceryListService(
         return repo.create(newId, name)
     }
 
-    fun update(id: UUID, name: String): Boolean = repo.update(id, name)
+    fun update(id: UUID, newName: String): Boolean {
+        val existing = repo.getById(id) ?: return false
+
+        if (newName.isBlank()) throw IllegalArgumentException("Name cannot be blank")
+
+        return repo.update(id, newName)
+    }
 
     fun delete(id: UUID): Boolean = repo.delete(id)
 }
