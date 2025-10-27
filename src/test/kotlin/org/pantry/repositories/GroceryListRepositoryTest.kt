@@ -39,9 +39,9 @@ class GroceryListRepositoryTest {
 
     @AfterEach
     fun cleanup() {
-        transaction { 
-            GroceryListTable.deleteAll()
+        transaction {
             ItemTable.deleteAll()
+            GroceryListTable.deleteAll()
         }
     } 
 
