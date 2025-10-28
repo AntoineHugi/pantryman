@@ -7,6 +7,7 @@ import io.mockk.clearMocks
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.assertThrows
 import org.pantry.models.Item
 import org.pantry.models.ItemUpdateRequest
 import org.pantry.repositories.ItemRepository
@@ -23,7 +24,7 @@ class ItemServiceTest {
     @Test
     fun `getAll should return items from repo`() {
         val id = UUID.randomUUID()
-        val items = listOf(Item(id, "Milk", 2, false, false))
+        val items = listOf(Item(id.toString(), "Milk", 2, false, false))
 
         every { repo.getAll(id) } returns items
 
@@ -36,7 +37,7 @@ class ItemServiceTest {
     @Test
     fun `getById should return item from repo`() {
         val id = UUID.randomUUID()
-        val item = Item(id, "Milk", 1, false, false)
+        val item = Item(id.toString(), "Milk", 1, false, false)
 
         every { repo.getById(id) } returns item
 
@@ -62,7 +63,7 @@ class ItemServiceTest {
         val listId = "list-123"
         val name = "Bread"
         val quantity = 3
-        val createdItem = Item(UUID.randomUUID(), name, quantity, false, false)
+        val createdItem = Item(UUID.randomUUID().toString(), name, quantity, false, false)
 
         every { repo.create(any(), listId, name, quantity, false) } returns createdItem
 
@@ -76,7 +77,7 @@ class ItemServiceTest {
     @Test
     fun `update should modify and return true`() {
         val id = UUID.randomUUID()
-        val existing = Item(id, "Eggs", 5, false, false)
+        val existing = Item(id.toString(), "Eggs", 5, false, false)
         val update = ItemUpdateRequest(name = "Milk", quantity = 6, isChecked = true, isFavorite = true)
 
         every { repo.getById(id) } returns existing
@@ -106,7 +107,7 @@ class ItemServiceTest {
     @Test
     fun `update should throw if name is blank`() {
         val id = UUID.randomUUID()
-        val existing = Item(id, "Milk", 2, false, false)
+        val existing = Item(id.toString(), "Milk", 2, false, false)
         every { repo.getById(id) } returns existing
 
         val update = ItemUpdateRequest(name = " ")
@@ -121,7 +122,7 @@ class ItemServiceTest {
     @Test
     fun `update should throw if quantity below 1`() {
         val id = UUID.randomUUID()
-        val existing = Item(id, "Milk", 2, false, false)
+        val existing = Item(id.toString(), "Milk", 2, false, false)
         every { repo.getById(id) } returns existing
 
         val update = ItemUpdateRequest(quantity = 0)
