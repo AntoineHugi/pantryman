@@ -7,6 +7,7 @@ import io.mockk.clearMocks
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.assertThrows
 import org.pantry.models.GroceryList
 import org.pantry.models.Item
 import org.pantry.repositories.GroceryListRepository
@@ -26,9 +27,10 @@ class GroceryListServiceTest {
     }
 
     @Test
-    fun `getAll should return grocecry lists from repo`() {
+    fun `getAll should return grocery lists from repo`() {
         val id = UUID.randomUUID()
-        val groceryList = GroceryList(id, "Groceries", listOf(Item(itemId, "Milk", 2, false, false)))
+        val itemId = UUID.randomUUID()
+        val groceryList = GroceryList(id.toString(), "Groceries", listOf(Item(itemId.toString(), "Milk", 2, false, false)))
 
         every { repo.getAll() } returns listOf(groceryList)
 
@@ -42,7 +44,7 @@ class GroceryListServiceTest {
     fun `getById returns correct list`() {
         val id = UUID.randomUUID()
         val itemId = UUID.randomUUID()
-        val groceryList = GroceryList(id, "Groceries", listOf(Item(itemId, "Milk", 2, false, false)))
+        val groceryList = GroceryList(id.toString(), "Groceries", listOf(Item(itemId.toString(), "Milk", 2, false, false)))
 
         every { repo.getById(id) } returns groceryList
 
@@ -67,7 +69,7 @@ class GroceryListServiceTest {
     fun `create creates list with correct parameters`() {
 
         val name = "Groceries"
-        val created = GroceryList(UUID.randomUUID(), name)
+        val created = GroceryList(UUID.randomUUID().toString(), name, emptyList())
         every { repo.create(any(), name) } returns created
 
         val result = service.create(name)
@@ -80,7 +82,7 @@ class GroceryListServiceTest {
     fun `update should modify and return true`() {
         val id = UUID.randomUUID()
         val itemId = UUID.randomUUID()
-        val existing = GroceryList(id, "Groceries", listOf(Item(itemId, "Milk", 2, false, false)))
+        val existing = GroceryList(id.toString(), "Groceries", listOf(Item(itemId.toString(), "Milk", 2, false, false)))
         val newName = "Weekly Groceries"
 
         every { repo.getById(id) } returns existing
@@ -112,7 +114,7 @@ class GroceryListServiceTest {
     fun `update should throw if name is blank`() {
         val id = UUID.randomUUID()
         val itemId = UUID.randomUUID()
-        val existing = GroceryList(id, "Groceries", listOf(Item(itemId, "Milk", 2, false, false)))
+        val existing = GroceryList(id.toString(), "Groceries", listOf(Item(itemId.toString(), "Milk", 2, false, false)))
         val newName = " "
         every { repo.getById(id) } returns existing
 

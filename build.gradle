@@ -79,6 +79,7 @@ dependencies {
     testImplementation "io.ktor:ktor-client-mock:${ktorVersion}"
 
     testImplementation("org.testcontainers:postgresql:${postgresTestContainers}")
+    testImplementation("org.testcontainers:junit-jupiter:${postgresTestContainers}")
 
     
 

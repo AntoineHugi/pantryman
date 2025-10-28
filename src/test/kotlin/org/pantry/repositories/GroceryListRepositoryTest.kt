@@ -1,10 +1,13 @@
 package org.pantry.repositories
 
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.testcontainers.containers.PostgreSQLContainer
-import org.pantry.models.GroceryList
-import org.pantry.models.Item
 import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.postgres.tables.ItemTable
 import java.util.UUID
@@ -72,35 +75,32 @@ class GroceryListRepositoryTest {
     @Test
     fun `3 - getById returns correct list`() {
         val listId = UUID.randomUUID()
-        val created = repo.create(listId, "Groceries")
-        val found = repo.getById(listId)
+        repo.create(listId, "Groceries")
 
-        assertNotNull(found)
-        assertEquals("Groceries", found.name)
+        val result = checkNotNull(repo.getById(listId))
+        assertEquals("Groceries", result.name)
     }
 
     @Test
     fun `4 - update updates list correctly`() {
         val listId = UUID.randomUUID()
-        val created = repo.create(UUID.randomUUID(), "Groceries")
-        val id = UUID.fromString(created.id)
+        repo.create(listId, "Groceries")
 
-        val updated = repo.update(id, "Weekly Groceries")
-
+        val updated = repo.update(listId, "Weekly Groceries")
         assertTrue(updated)
-        val result = repo.getById(id)
-        assertNotNull(found)
+
+        val result = checkNotNull(repo.getById(listId))
+        assertNotNull(result)
         assertEquals("Weekly Groceries", result.name)
     }
 
     @Test
     fun `5 - delete deletes list`() {
         val listId = UUID.randomUUID()
-        val created = repo.create(UUID.randomUUID(), "Groceries")
-        val id = UUID.fromString(created.id)
+        repo.create(listId, "Groceries")
 
-        val deleted = repo.delete(id)
-        val afterDelete = repo.getById(id)
+        val deleted = repo.delete(listId)
+        val afterDelete = repo.getById(listId)
 
         assertTrue(deleted)
         assertNull(afterDelete)
