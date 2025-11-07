@@ -64,6 +64,26 @@
   color: dimgray;
 }
 
+.item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.item-actions button {
+  margin-left: 6px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: black;
+  cursor: pointer;
+}
+
+.item-actions button:hover {
+  background: #ccc;
+}
+
 main {
   padding: 1.5rem 2rem;
 }
