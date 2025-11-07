@@ -5,10 +5,8 @@ services:
     type: static-site
     build:
       workdir: web
-      commands:
-        - npm install
-        - npm run build
+      command: npm install && npm run build
     static:
-      publish: web/dist
+      publish: dist
     env:
       VITE_API_URL: "https://pantryman.koyeb.app/"
