@@ -5,7 +5,9 @@ services:
     type: static-site
     build:
       workdir: web
-      command: npm install && npm run build
+      commands:
+        - npm install
+        - npm run build
     static:
       publish: dist
     env:
