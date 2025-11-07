@@ -21,6 +21,7 @@ fun main(args: Array<String>): Unit = EngineMain.main(args)
 fun Application.module() {
     install(CORS) {
         allowHost("localhost:5173")
+        allowHost("pantryman.koyeb.app")
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
         allowMethod(HttpMethod.Get)
