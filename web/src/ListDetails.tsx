@@ -128,6 +128,29 @@ function ListDetails() {
     }
   };
 
+  const toggleFavorite = async (item: Item) => {
+    if (!id) return;
+
+    try {
+      await api.patch(`/lists/${id}/items/${item.id}`, {
+        isFavorite: !item.isFavorite,
+      });
+
+      setList(prev =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map(it =>
+                it.id === item.id ? { ...it, isFavorite: !it.isFavorite } : it
+              ),
+            }
+          : prev
+      );
+    } catch (err) {
+      console.error("Failed to toggle favorite", err);
+    }
+  };
+
   if (error) return <p style={{ color: "red" }}>{error}</p>;
   if (!list) return <p>Loading...</p>;
 
@@ -156,6 +179,7 @@ function ListDetails() {
                 {item.name} (x{item.quantity})
               </span>
               <div className="item-actions">
+                <button onClick={(e) => { e.stopPropagation(); toggleFavorite(item); }} style={{ color: item.isFavorite ? 'gold' : 'gray' }}>★</button>
                 <button onClick={(e) => { e.stopPropagation(); handleIncrease(item); }}>+</button>
                 <button onClick={(e) => { e.stopPropagation(); handleDecrease(item); }}>−</button>
                 <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}>✕</button>
