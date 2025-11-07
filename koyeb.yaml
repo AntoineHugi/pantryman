@@ -1,13 +1,14 @@
+name: pantryman-web
+
 services:
-  - name: web-frontend
+  frontend:
     type: static-site
-    src: web
     build:
+      workdir: web
       commands:
         - npm install
         - npm run build
     static:
-      publish_directory: dist
-      spa: true
+      publish: web/dist
     env:
-      VITE_API_URL: "https://<your-backend-service>.koyeb.app"
+      VITE_API_URL: "https://pantryman.koyeb.app/"
