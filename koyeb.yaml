@@ -1,0 +1,13 @@
+services:
+  - name: web-frontend
+    type: static-site
+    src: web
+    build:
+      commands:
+        - npm install
+        - npm run build
+    static:
+      publish_directory: dist
+      spa: true
+    env:
+      VITE_API_URL: "https://<your-backend-service>.koyeb.app"
