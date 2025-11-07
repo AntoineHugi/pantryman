@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Routes, Route, useParams, Navigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import './App.css'
 import api from "./api";
 import AddItemForm from "./AddItemForm";
@@ -20,6 +20,7 @@ type GroceryList = {
 
 function ListDetails() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [list, setList] = useState<GroceryList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -84,11 +85,11 @@ function ListDetails() {
           : prev
       );
     } catch (err) {
-      console.error("Failed to increase quantity", err);
+      console.error("Failed to decrease quantity", err);
     }
   };
 
-  const handleDelete = async (itemId: String) => {
+  const handleDelete = async (itemId: string) => {
     try {
       await api.delete(`/lists/${id}/items/${itemId}`);
       setList((prev) =>
@@ -104,26 +105,60 @@ function ListDetails() {
     }
   };
 
+  const toggleCheck = async (item: Item) => {
+    if (!id) return;
+
+    try {
+      await api.patch(`/lists/${id}/items/${item.id}`, {
+        isChecked: !item.isChecked,
+      });
+
+      setList(prev =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map(it =>
+                it.id === item.id ? { ...it, isChecked: !it.isChecked } : it
+              ),
+            }
+          : prev
+      );
+    } catch (err) {
+      console.error("Failed to toggle check", err);
+    }
+  };
+
   if (error) return <p style={{ color: "red" }}>{error}</p>;
-  if (!list) return <p>Loading...</p>; // <-- prevent accessing list before it exists
+  if (!list) return <p>Loading...</p>;
 
   return (
     <>
       <h1>{list.name}</h1>
-      <h2>Items</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>Items</h2>
+        <button onClick={() => navigate(-1)}>← Back</button>
+      </div>
       {list.items.length === 0 ? (
         <p>No items yet</p>
       ) : (
         <ul>
           {list.items.map((item) => (
-            <li key={item.id} className="item-row">
+            <li
+              key={item.id}
+              className="item-row"
+              onClick={() => toggleCheck(item)}
+              style={{
+                textDecoration: item.isChecked ? 'line-through' : 'none',
+                cursor: 'pointer',
+              }}
+            >
               <span>
                 {item.name} (x{item.quantity})
               </span>
               <div className="item-actions">
-                <button onClick={() => handleIncrease(item)}>+</button>
-                <button onClick={() => handleDecrease(item)}>−</button>
-                <button onClick={() => handleDelete(item.id)}>✕</button>
+                <button onClick={(e) => { e.stopPropagation(); handleIncrease(item); }}>+</button>
+                <button onClick={(e) => { e.stopPropagation(); handleDecrease(item); }}>−</button>
+                <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}>✕</button>
               </div>
             </li>
           ))}
