@@ -11,6 +11,7 @@ object ItemTable : Table("item_list") {
     val isFavorite = bool("is_favorite").default(false)
 
     val listId = uuid("list_id").references(GroceryListTable.id, onDelete = ReferenceOption.CASCADE)
+
     override val primaryKey = PrimaryKey(id)
 
 }

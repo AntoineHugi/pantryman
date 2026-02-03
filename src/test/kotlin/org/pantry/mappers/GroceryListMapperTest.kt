@@ -13,8 +13,10 @@ import java.util.UUID
 
 class GroceryListMapperTest {
 
+    private val testUserId = UUID.randomUUID()
+
     @Test
-    fun `toGroceryList maps id name and items`() {
+    fun `toGroceryList maps id name items and userId`() {
         val row = mockk<ResultRow>()
         val repo = mockk<ItemRepository>()
         val listId: UUID = UUID.randomUUID()
@@ -23,6 +25,7 @@ class GroceryListMapperTest {
 
         every { row[GroceryListTable.id] } returns listId
         every { row[GroceryListTable.name] } returns name
+        every { row[GroceryListTable.userID] } returns testUserId
         every { repo.getByListId(listId) } returns items
 
         val result = row.toGroceryList(repo)
@@ -30,6 +33,7 @@ class GroceryListMapperTest {
         assertEquals(listId.toString(), result.id)
         assertEquals(name, result.name)
         assertEquals(items, result.items)
+        assertEquals(testUserId.toString(), result.userId)
 
         verify(exactly = 1) { repo.getByListId(listId) }
     }

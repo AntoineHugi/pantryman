@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.testcontainers.containers.PostgreSQLContainer
 import org.pantry.postgres.tables.ItemTable
+import org.pantry.postgres.tables.GroceryListTable
 import java.util.UUID
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -26,6 +27,9 @@ class ItemRepositoryTest {
     private val repo = ItemRepository()
     private val groceryRepo = GroceryListRepository(repo)
 
+    // Shared test user ID
+    private val testUserId = UUID.randomUUID()
+
     @BeforeAll
     fun setup() {
         Database.connect(
@@ -34,13 +38,16 @@ class ItemRepositoryTest {
             user = postgres.username,
             password = postgres.password
         )
-        transaction { SchemaUtils.create(ItemTable) }
+        transaction {
+            SchemaUtils.create(GroceryListTable, ItemTable)
+        }
     }
 
     @AfterEach
     fun cleanup() {
         transaction {
             ItemTable.deleteAll()
+            GroceryListTable.deleteAll()
         }
     }
 
@@ -53,7 +60,7 @@ class ItemRepositoryTest {
     fun `1 - create creates item with correct parameters`() {
         val id = UUID.randomUUID()
         val listId = UUID.randomUUID()
-        groceryRepo.create(listId, "Groceries")
+        groceryRepo.create(listId, "Groceries", testUserId)
         val created = repo.create(id, listId.toString(), "Butter", 3, false)
 
         assertEquals("Butter", created.name)
@@ -66,7 +73,7 @@ class ItemRepositoryTest {
     @Test
     fun `2 - getAll returns full list`() {
         val listId = UUID.randomUUID()
-        groceryRepo.create(listId, "Groceries")
+        groceryRepo.create(listId, "Groceries", testUserId)
         val item1 = repo.create(UUID.randomUUID(), listId.toString(), "Milk", 2, false)
         val item2 = repo.create(UUID.randomUUID(), listId.toString(), "Bread", 1, false)
 
@@ -80,7 +87,7 @@ class ItemRepositoryTest {
     fun `3 - getById returns correct item`() {
         val id = UUID.randomUUID()
         val listId = UUID.randomUUID()
-        groceryRepo.create(listId, "Groceries")
+        groceryRepo.create(listId, "Groceries", testUserId)
         repo.create(id, listId.toString(), "Eggs", 12, false)
         val result = checkNotNull(repo.getById(id))
 
@@ -93,7 +100,7 @@ class ItemRepositoryTest {
     fun `4 - update updates item correctly`() {
         val id = UUID.randomUUID()
         val listId = UUID.randomUUID()
-        groceryRepo.create(listId, "Groceries")
+        groceryRepo.create(listId, "Groceries", testUserId)
         repo.create(id, listId.toString(), "Eggs", 12, false)
 
         val updated = repo.update(id, "Green Apples", 10, true, true)
@@ -110,7 +117,7 @@ class ItemRepositoryTest {
     fun `5 - delete deletes item`() {
         val id = UUID.randomUUID()
         val listId = UUID.randomUUID()
-        groceryRepo.create(listId, "Groceries")
+        groceryRepo.create(listId, "Groceries", testUserId)
         val created = repo.create(id, listId.toString(), "Oranges", 4, false)
 
         val deleted = repo.delete(id)
