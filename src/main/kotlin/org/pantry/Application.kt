@@ -14,8 +14,6 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 
-
-
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
 fun Application.module() {
@@ -51,6 +49,7 @@ fun Application.module() {
 
     DatabaseFactory.init(url, user, password)
 
+    authAPI()
     menuApi()
     groceriesApi()
 }

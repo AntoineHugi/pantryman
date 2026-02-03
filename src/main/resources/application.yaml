@@ -9,3 +9,9 @@ db:
   url: ${DB_URL:"jdbc:postgresql://localhost:5432/pantryman"}
   user: ${DB_USER:"user"}
   password: ${DB_PASSWORD:"password"}
+
+  jwt:
+    secret: ${JWT_SECRET:-dev-secret-key-change-in-production}
+    issuer: "pantry-app"
+    audience: "pantry-users"
+    realm: "Pantry App"

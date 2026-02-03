@@ -4,12 +4,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CreateGroceryListRequest(
-    val name: String
+    val name: String,
+    val userId: String
 )
 
 @Serializable
 data class GroceryList(
     val id: String,
     val name: String,
-    val items: List<Item>
+    val items: List<Item>,
+    val userId: String
 )

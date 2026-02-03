@@ -10,6 +10,7 @@ fun ResultRow.toGroceryList(itemRepo: ItemRepository): GroceryList {
     return GroceryList(
             id = listId.toString(),
             name = this[GroceryListTable.name],
-            items = itemRepo.getByListId(listId)
+            items = itemRepo.getByListId(listId),
+            userId = this[GroceryListTable.userID].toString()
     )
 }
