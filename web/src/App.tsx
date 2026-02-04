@@ -1,32 +1,39 @@
-import { useEffect, useState } from "react";
-import { Link, Routes, Route, useParams, Navigate } from "react-router-dom";
-import './App.css'
-import api from "./api";
-import ListsPage from "./ListsPage";
-import ListDetails from "./ListDetails";
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './components/layout/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignUpPage';
+import ListsPage from './pages/ListsPage';
+import ListDetailsPage from './pages/ListDetailsPage';
+import './App.css';
 
 function App() {
   return (
-    <>
-      <header className="header">
-        <div className="container">
-          <div className="logo">
-            <Link className="logo-link" to={`/lists`}>
-              <span className="logo-text">PantryMan</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="container">
-        <Routes>
-          <Route path="/" element={<Navigate to="/lists" replace />} />
-          <Route path="/lists" element={<ListsPage />} />
-          <Route path="/lists/:id/items" element={<ListDetails />} />
-        </Routes>
-      </main>
-    </>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      
+      <Route element={<Layout />}>
+        <Route path="/" element={<Navigate to="/lists" replace />} />
+        <Route
+          path="/lists"
+          element={
+            <ProtectedRoute>
+              <ListsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lists/:id/items"
+          element={
+            <ProtectedRoute>
+              <ListDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+    </Routes>
   );
 }
 
-export default App
+export default App;

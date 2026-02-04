@@ -1,5 +1,5 @@
 import { useState } from "react";
-import api from "./api";
+import apiClient from '../api/client';
 
 type AddItemFormProps = {
   listId: string;
@@ -26,7 +26,7 @@ function AddItemForm({ listId, onItemAdded }: AddItemFormProps) {
     try {
       const payload = { listId, name: itemName, quantity };
 
-      const res = await api.post<Item>(`/lists/${listId}/items`, payload);
+      const res = await apiClient.post<Item>(`/lists/${listId}/items`, payload);
       onItemAdded(res.data);
 
       setItemName("");

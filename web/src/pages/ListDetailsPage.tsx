@@ -1,24 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import './App.css'
-import api from "./api";
-import AddItemForm from "./AddItemForm";
+import { useParams, useNavigate } from "react-router-dom";
+import { listsApi } from "../api/lists";
+import { itemsApi } from "../api/items";
+import type { Item, GroceryList } from "../api/types";
+import AddItemForm from "../components/AddItemForm";
+import '../App.css';
 
-type Item = {
-  id: string;
-  name: string;
-  quantity: number;
-  isChecked: boolean;
-  isFavorite: boolean;
-};
-
-type GroceryList = {
-  id: string;
-  name: string;
-  items: Item[];
-};
-
-function ListDetails() {
+function ListDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [list, setList] = useState<GroceryList | null>(null);
@@ -27,9 +15,9 @@ function ListDetails() {
 
   useEffect(() => {
     if (!id) return;
-    api
-      .get<GroceryList>(`/lists/${id}`)
-      .then((res) => setList(res.data))
+    listsApi
+      .getById(id)
+      .then((data) => setList(data))
       .catch((err) => {
         console.error("Failed to fetch list:", err);
         setError("Could not load grocery list");
@@ -47,7 +35,7 @@ function ListDetails() {
     if (!id) return;
 
     try {
-      await api.patch(`/lists/${id}/items/${item.id}`, {
+      await itemsApi.update(id, item.id, {
         quantity: item.quantity + 1,
       });
 
@@ -70,7 +58,7 @@ function ListDetails() {
     if (!id) return;
 
     try {
-      await api.patch(`/lists/${id}/items/${item.id}`, {
+      await itemsApi.update(id, item.id, {
         quantity: item.quantity - 1,
       });
 
@@ -90,8 +78,10 @@ function ListDetails() {
   };
 
   const handleDelete = async (itemId: string) => {
+    if (!id) return;
+
     try {
-      await api.delete(`/lists/${id}/items/${itemId}`);
+      await itemsApi.delete(id, itemId);
       setList((prev) =>
         prev
           ? {
@@ -109,7 +99,7 @@ function ListDetails() {
     if (!id) return;
 
     try {
-      await api.patch(`/lists/${id}/items/${item.id}`, {
+      await itemsApi.update(id, item.id, {
         isChecked: !item.isChecked,
       });
 
@@ -132,7 +122,7 @@ function ListDetails() {
     if (!id) return;
 
     try {
-      await api.patch(`/lists/${id}/items/${item.id}`, {
+      await itemsApi.update(id, item.id, {
         isFavorite: !item.isFavorite,
       });
 
@@ -197,4 +187,4 @@ function ListDetails() {
   );
 }
 
-export default ListDetails;
+export default ListDetailsPage;
