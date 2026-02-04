@@ -49,6 +49,7 @@ fun Application.module() {
 
     DatabaseFactory.init(url, user, password)
 
+    configureSecurity()
     authAPI()
     menuApi()
     groceriesApi()
