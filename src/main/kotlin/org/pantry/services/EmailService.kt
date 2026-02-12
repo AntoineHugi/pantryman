@@ -4,11 +4,21 @@ import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.util.UUID
+
+@Serializable
+data class ResendEmailRequest(
+    val from: String,
+    val to: List<String>,
+    val subject: String,
+    val html: String
+)
 
 class EmailService(
     private val apiKey: String,
@@ -27,14 +37,14 @@ class EmailService(
         val verificationLink = "$verificationBaseUrl/auth/verify?token=$token"
 
         try {
-            client.post("https://api.resend.com/emails") {
+            val response = client.post("https://api.resend.com/emails") {
                 header(HttpHeaders.Authorization, "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
-                setBody(mapOf(
-                    "from" to fromEmail,
-                    "to" to listOf(to),
-                    "subject" to "Verify your Pantryman account",
-                    "html" to """
+                setBody(ResendEmailRequest(
+                    from = fromEmail,
+                    to = listOf(to),
+                    subject = "Verify your Pantryman account",
+                    html = """
                         <h2>Welcome to Pantryman!</h2>
                         <p>Click the link below to verify your email address:</p>
                         <p><a href="$verificationLink">Verify my email</a></p>
@@ -42,7 +52,16 @@ class EmailService(
                     """.trimIndent()
                 ))
             }
-            logger.info("Verification email sent to $to")
+
+            if (response.status.value in 200..299) {
+                logger.info("Verification email sent to $to")
+            } else {
+                val body = response.bodyAsText()
+                logger.error("Resend API error (${response.status}): $body")
+                throw RuntimeException("Resend API error: ${response.status}")
+            }
+        } catch (e: RuntimeException) {
+            throw e
         } catch (e: Exception) {
             logger.error("Failed to send verification email to $to", e)
             throw RuntimeException("Failed to send verification email")
