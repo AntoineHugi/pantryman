@@ -20,6 +20,7 @@ fun Application.module() {
     install(CORS) {
         allowHost("localhost:5173")
         allowHost("pantryman.koyeb.app")
+        allowHost("pantryman.de")
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
         allowMethod(HttpMethod.Get)

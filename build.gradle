@@ -74,6 +74,11 @@ dependencies {
     //BCrypt
     implementation("org.mindrot:jbcrypt:$bcryptVersion")
 
+    // Ktor HTTP Client (for Resend API)
+    implementation "io.ktor:ktor-client-core:${ktorVersion}"
+    implementation "io.ktor:ktor-client-cio:${ktorVersion}"
+    implementation "io.ktor:ktor-client-content-negotiation:${ktorVersion}"
+
 
     // Unit Tests
     testImplementation "io.mockk:mockk:${mockkVersion}"

@@ -4,18 +4,20 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import org.mindrot.jbcrypt.BCrypt
 import org.pantry.models.AuthResponse
+import org.pantry.models.SignupResponse
 import org.pantry.repositories.UserRepository
 import java.util.Date
 import java.util.UUID
 
 class AuthService(
     private val userRepository: UserRepository,
+    private val emailService: EmailService,
     private val jwtSecret: String,
     private val jwtIssuer: String,
     private val jwtAudience: String
 ) {
 
-    fun signup(email: String, password: String): AuthResponse {
+    suspend fun signup(email: String, password: String): SignupResponse {
         // Validate input
         if (email.isBlank() || !email.contains("@")) {
             throw IllegalArgumentException("Invalid email")
@@ -32,14 +34,18 @@ class AuthService(
         // Hash password
         val passwordHash = BCrypt.hashpw(password, BCrypt.gensalt(10))
 
-        // Create user
+        // Create user with verification token
         val userId = UUID.randomUUID()
-        val user = userRepository.create(userId, email, passwordHash)
+        val verificationToken = UUID.randomUUID()
+        userRepository.create(userId, email, passwordHash, verificationToken)
 
-        // Generate token
-        val token = generateToken(userId)
+        // Send verification email
+        emailService.sendVerificationEmail(email, verificationToken)
 
-        return AuthResponse(token, user.id, user.email)
+        return SignupResponse(
+            message = "Please check your email to verify your account.",
+            email = email
+        )
     }
 
     fun login(email: String, password: String): AuthResponse? {
@@ -51,10 +57,34 @@ class AuthService(
             return null
         }
 
+        // Check if email is verified
+        if (!user.isVerified) {
+            throw EmailNotVerifiedException("Please verify your email before logging in.")
+        }
+
         // Generate token
         val token = generateToken(UUID.fromString(user.id))
 
         return AuthResponse(token, user.id, user.email)
+    }
+
+    fun verifyEmail(token: UUID): Boolean {
+        val user = userRepository.getByVerificationToken(token) ?: return false
+        userRepository.markAsVerified(UUID.fromString(user.id))
+        return true
+    }
+
+    suspend fun resendVerification(email: String) {
+        val user = userRepository.getByEmail(email)
+            ?: throw IllegalArgumentException("No account found with this email.")
+
+        if (user.isVerified) {
+            throw IllegalArgumentException("Email is already verified.")
+        }
+
+        val newToken = UUID.randomUUID()
+        userRepository.updateVerificationToken(UUID.fromString(user.id), newToken)
+        emailService.sendVerificationEmail(email, newToken)
     }
 
     private fun generateToken(userId: UUID): String {
@@ -66,3 +96,5 @@ class AuthService(
             .sign(Algorithm.HMAC256(jwtSecret))
     }
 }
+
+class EmailNotVerifiedException(message: String) : Exception(message)
