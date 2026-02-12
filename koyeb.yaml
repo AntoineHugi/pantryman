@@ -2,7 +2,7 @@ name: pantryman
 build:
   type: docker
 run:
-  cmd: ./bin/pantryman
+  cmd: ./bin/pantryman -port=8000
   ports:
-    - port: 8080
+    - port: 8000
       protocol: http
