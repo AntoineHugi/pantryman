@@ -38,14 +38,14 @@ fun Application.module() {
     }
     install(Koin) {
         slf4jLogger()
-        modules(appModule)
+        modules(appModule(this@module))
     }
 
     val config = environment.config
     val dbConfig = config.config("db")
-    val url = dbConfig.property("url").getString()
-    val user = dbConfig.property("user").getString()
-    val password = dbConfig.property("password").getString()
+    val url = System.getenv("DB_URL") ?: dbConfig.property("url").getString()
+    val user = System.getenv("DB_USER") ?: dbConfig.property("user").getString()
+    val password = System.getenv("DB_PASSWORD") ?: dbConfig.property("password").getString()
 
     DatabaseFactory.init(url, user, password)
 
