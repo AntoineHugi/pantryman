@@ -5,16 +5,22 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignUpPage';
 import ListsPage from './pages/ListsPage';
 import ListDetailsPage from './pages/ListDetailsPage';
+import { useAuth } from './hooks/useAuth';
 import './App.css';
+
+function HomePage() {
+  const { isAuthenticated } = useAuth();
+  return <Navigate to={isAuthenticated ? "/lists" : "/login"} replace />;
+}
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
-      
+
       <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/lists" replace />} />
+        <Route path="/" element={<HomePage />} />
         <Route
           path="/lists"
           element={

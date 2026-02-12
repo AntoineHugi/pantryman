@@ -1,48 +1,12 @@
-import { useState, useEffect } from 'react';
-import { authApi } from '../api/auth';
-import type { SignupRequest, LoginRequest } from '../api/types';
+import { useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
 
 export const useAuth = () => {
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem('authToken')
-  );
-  const [userId, setUserId] = useState<string | null>(
-    localStorage.getItem('userId')
-  );
-  const [isAuthenticated, setIsAuthenticated] = useState(!!token);
+  const context = useContext(AuthContext);
 
-  useEffect(() => {
-    setIsAuthenticated(!!token);
-  }, [token]);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
 
-  const signup = async (data: SignupRequest) => {
-    const response = await authApi.signup(data);
-    localStorage.setItem('authToken', response.token);
-    localStorage.setItem('userId', response.userId);
-    setToken(response.token);
-    setUserId(response.userId);
-  };
-
-  const login = async (data: LoginRequest) => {
-    const response = await authApi.login(data);
-    localStorage.setItem('authToken', response.token);
-    localStorage.setItem('userId', response.userId);
-    setToken(response.token);
-    setUserId(response.userId);
-  };
-
-  const logout = () => {
-    authApi.logout();
-    setToken(null);
-    setUserId(null);
-  };
-
-  return {
-    isAuthenticated,
-    token,
-    userId,
-    signup,
-    login,
-    logout,
-  };
+  return context;
 };

@@ -4,6 +4,7 @@ import apiClient from '../api/client';
 type AddItemFormProps = {
   listId: string;
   onItemAdded: (newItem: Item) => void;
+  onCancel: () => void;
 };
 
 type Item = {
@@ -14,7 +15,7 @@ type Item = {
   isFavorite: boolean;
 };
 
-function AddItemForm({ listId, onItemAdded }: AddItemFormProps) {
+function AddItemForm({ listId, onItemAdded, onCancel }: AddItemFormProps) {
   const [itemName, setItemName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -38,24 +39,41 @@ function AddItemForm({ listId, onItemAdded }: AddItemFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: "1rem" }}>
-      <input
-        type="text"
-        placeholder="Item name"
-        value={itemName}
-        onChange={(e) => setItemName(e.target.value)}
-        required
-      />
-      <input
-        type="number"
-        min={1}
-        value={quantity}
-        onChange={(e) => setQuantity(Number(e.target.value))}
-        required
-      />
-      <button type="submit">Add</button>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-    </form>
+    <div className="add-form">
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Item name"
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+            required
+            autoFocus
+          />
+        </div>
+        <div className="form-group">
+          <input
+            type="number"
+            className="form-input"
+            min={1}
+            placeholder="Quantity"
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+            required
+          />
+        </div>
+        {error && <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>}
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary">
+            Add Item
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
