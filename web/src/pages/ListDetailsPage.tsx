@@ -57,7 +57,7 @@ function ListDetailsPage() {
   };
 
   const handleDecrease = async (item: Item) => {
-    if (!id) return;
+    if (!id || item.quantity <= 1) return;
 
     try {
       await itemsApi.update(id, item.id, {
