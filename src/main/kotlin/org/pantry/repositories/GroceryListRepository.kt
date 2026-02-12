@@ -1,11 +1,11 @@
 package org.pantry.repositories
 
-import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.pantry.models.GroceryList
 import org.pantry.postgres.tables.GroceryListTable
+import org.pantry.mappers.toGroceryList
 import java.util.UUID
 
 class GroceryListRepository(
@@ -13,28 +13,13 @@ class GroceryListRepository(
 ) {
     fun getAll(userID: UUID): List<GroceryList> = transaction {
         GroceryListTable.selectAll().where { GroceryListTable.userID eq userID }
-            .map { row ->
-            val listId = row[GroceryListTable.id]
-            GroceryList(
-                id = listId.toString(),
-                name = row[GroceryListTable.name],
-                items = itemRepo.getByListId(listId),
-                userId = userID.toString()
-            )
-        }
+            .map { it.toGroceryList(itemRepo) }
     }
 
     fun getById(id: UUID, userID: UUID): GroceryList? = transaction {
         GroceryListTable
             .selectAll().where { (GroceryListTable.userID eq userID) and (GroceryListTable.id eq id) }
-            .map { row ->
-                GroceryList(
-                    id = row[GroceryListTable.id].toString(),
-                    name = row[GroceryListTable.name],
-                    items = itemRepo.getByListId(id),
-                    userId = row[GroceryListTable.userID].toString()
-                )
-            }
+            .map { it.toGroceryList(itemRepo) }
             .singleOrNull()
     }
 

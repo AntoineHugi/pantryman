@@ -1,6 +1,5 @@
 package org.pantry.repositories
 
-import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -26,15 +25,7 @@ class ItemRepository {
 
     fun getByListId(listId: UUID): List<Item> = transaction {
         ItemTable.selectAll().where { ItemTable.listId eq listId }
-            .map { row ->
-                Item(
-                    id = row[ItemTable.id].toString(),
-                    name = row[ItemTable.name],
-                    quantity = row[ItemTable.quantity],
-                    isChecked = row[ItemTable.isChecked],
-                    isFavorite = row[ItemTable.isFavorite]
-                )
-            }
+            .map { it.toItem() }
     }
 
     fun create(newId: UUID,listId: String, name: String, quantity: Int, initBool : Boolean): Item = transaction {
