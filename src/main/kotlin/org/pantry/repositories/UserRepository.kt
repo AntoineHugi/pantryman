@@ -4,6 +4,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.pantry.models.User
 import org.pantry.postgres.tables.UserTable
+import org.pantry.mappers.toUser
 import java.util.UUID
 
 class UserRepository {
@@ -37,9 +38,3 @@ class UserRepository {
         }
     }
 }
-
-private fun ResultRow.toUser() = User(
-    id = this[UserTable.id].toString(),
-    email = this[UserTable.email],
-    passwordHash = this[UserTable.passwordHash]
-)

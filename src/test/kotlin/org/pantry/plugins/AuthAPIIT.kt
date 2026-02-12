@@ -178,7 +178,7 @@ class RoutingAuthApiIT : KoinTest {
 
         assertEquals(HttpStatusCode.BadRequest, secondResponse.status)
         val errorResponse: Map<String, String> = secondResponse.body()
-        assertEquals("User already exists", errorResponse["error"])
+        assertEquals("Registration Failed", errorResponse["error"])
     }
 
     @Test

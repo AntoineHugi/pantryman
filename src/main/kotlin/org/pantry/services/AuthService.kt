@@ -30,7 +30,7 @@ class AuthService(
         }
 
         // Hash password
-        val passwordHash = BCrypt.hashpw(password, BCrypt.gensalt(6))
+        val passwordHash = BCrypt.hashpw(password, BCrypt.gensalt(10))
 
         // Create user
         val userId = UUID.randomUUID()
