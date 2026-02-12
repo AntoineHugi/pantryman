@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LoginPage() {
@@ -8,16 +8,22 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const verified = searchParams.get('verified') === 'true';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     try {
       await login({ email, password });
       navigate('/lists');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      if (err.response?.status === 403) {
+        setError('Please verify your email before logging in.');
+      } else {
+        setError(err.response?.data?.error || 'Login failed');
+      }
     }
   };
 
@@ -25,6 +31,11 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="card" style={{ maxWidth: '400px', margin: '3rem auto' }}>
         <h1 style={{ marginTop: 0 }}>Login</h1>
+        {verified && (
+          <p style={{ color: 'green', marginBottom: '1rem' }}>
+            Email verified! You can now log in.
+          </p>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <input

@@ -8,6 +8,11 @@ export interface User {
     userId: string;
     email: string;
   }
+
+  export interface SignupResponse {
+    message: string;
+    email: string;
+  }
   
   export interface SignupRequest {
     email: string;

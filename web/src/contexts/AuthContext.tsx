@@ -1,12 +1,12 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
 import { authApi } from '../api/auth';
-import type { SignupRequest, LoginRequest } from '../api/types';
+import type { SignupRequest, LoginRequest, SignupResponse } from '../api/types';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   token: string | null;
   userId: string | null;
-  signup: (data: SignupRequest) => Promise<void>;
+  signup: (data: SignupRequest) => Promise<SignupResponse>;
   login: (data: LoginRequest) => Promise<void>;
   logout: () => void;
 }
@@ -30,12 +30,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsAuthenticated(!!token);
   }, [token]);
 
-  const signup = async (data: SignupRequest) => {
-    const response = await authApi.signup(data);
-    localStorage.setItem('authToken', response.token);
-    localStorage.setItem('userId', response.userId);
-    setToken(response.token);
-    setUserId(response.userId);
+  const signup = async (data: SignupRequest): Promise<SignupResponse> => {
+    return await authApi.signup(data);
   };
 
   const login = async (data: LoginRequest) => {

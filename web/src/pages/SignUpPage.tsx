@@ -1,25 +1,43 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const { signup } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+    setSuccess('');
+
     try {
-      await signup({ email, password });
-      navigate('/lists');
+      const response = await signup({ email, password });
+      setSuccess(response.message);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Signup failed');
     }
   };
+
+  if (success) {
+    return (
+      <div className="auth-page">
+        <div className="card" style={{ maxWidth: '400px', margin: '3rem auto' }}>
+          <h1 style={{ marginTop: 0 }}>Check your email</h1>
+          <p>We've sent a verification link to <strong>{email}</strong>.</p>
+          <p>Click the link in the email to verify your account, then you can log in.</p>
+          <Link to="/login">
+            <button className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+              Go to Login
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page">
