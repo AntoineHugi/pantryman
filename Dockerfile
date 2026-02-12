@@ -7,8 +7,6 @@ RUN gradle clean installDist --no-daemon
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/build/install/pantryman /app
-EXPOSE 8080
+EXPOSE 8000
 
-ENV PORT=8080
-
-CMD ["./bin/pantryman"]
+CMD ["./bin/pantryman", "-port=8000"]
