@@ -22,8 +22,21 @@ data class AuthResponse(
 )
 
 @Serializable
+data class SignupResponse(
+    val message: String,
+    val email: String
+)
+
+@Serializable
+data class ResendVerificationRequest(
+    val email: String
+)
+
+@Serializable
 data class User(
     val id: String,
     val email: String,
-    val passwordHash: String
+    val passwordHash: String,
+    val isVerified: Boolean = false,
+    val verificationToken: String? = null
 )
