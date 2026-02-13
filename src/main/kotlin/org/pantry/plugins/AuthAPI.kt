@@ -2,10 +2,13 @@ package org.pantry.plugins
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
+import org.pantry.models.ChangePasswordRequest
+import org.pantry.models.DeleteAccountRequest
 import org.pantry.models.LoginRequest
 import org.pantry.models.ResendVerificationRequest
 import org.pantry.models.SignupRequest
@@ -76,6 +79,34 @@ fun Application.authAPI() {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
                 } catch (e: Exception) {
                     call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Failed to resend verification email"))
+                }
+            }
+
+            authenticate("auth-jwt") {
+                put("/password") {
+                    try {
+                        val request = call.receive<ChangePasswordRequest>()
+                        authService.changePassword(call.userId, request.currentPassword, request.newPassword)
+                        call.respond(HttpStatusCode.OK, mapOf("message" to "Password updated successfully."))
+                    } catch (e: SecurityException) {
+                        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to e.message))
+                    } catch (e: IllegalArgumentException) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
+                    } catch (e: Exception) {
+                        call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Failed to change password"))
+                    }
+                }
+
+                delete("/account") {
+                    try {
+                        val request = call.receive<DeleteAccountRequest>()
+                        authService.deleteAccount(call.userId, request.password)
+                        call.respond(HttpStatusCode.OK, mapOf("message" to "Account deleted successfully."))
+                    } catch (e: SecurityException) {
+                        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to e.message))
+                    } catch (e: Exception) {
+                        call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Failed to delete account"))
+                    }
                 }
             }
         }
