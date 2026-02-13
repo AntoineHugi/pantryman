@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignUpPage';
 import ListsPage from './pages/ListsPage';
 import ListDetailsPage from './pages/ListDetailsPage';
+import SettingsPage from './pages/SettingsPage';
 import { useAuth } from './hooks/useAuth';
 import './App.css';
 
@@ -34,6 +35,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ListDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

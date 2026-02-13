@@ -16,6 +16,14 @@ export const authApi = {
     await apiClient.post('/auth/resend-verification', { email });
   },
 
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiClient.put('/auth/password', { currentPassword, newPassword });
+  },
+
+  deleteAccount: async (password: string): Promise<void> => {
+    await apiClient.delete('/auth/account', { data: { password } });
+  },
+
   logout: () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userId');

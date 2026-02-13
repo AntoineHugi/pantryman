@@ -590,3 +590,26 @@ main {
     height: 18px;
   }
 }
+
+/* Settings Page */
+.settings-form {
+  max-width: 400px;
+}
+
+.settings-error {
+  color: #dc3545;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.settings-success {
+  color: #28a745;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.settings-warning {
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}

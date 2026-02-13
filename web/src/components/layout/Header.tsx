@@ -32,9 +32,7 @@ export default function Header() {
 
   const handleSettings = () => {
     setIsDropdownOpen(false);
-    // Navigate to settings page when it exists
-    // navigate('/settings');
-    alert('Settings page coming soon!');
+    navigate('/settings');
   };
 
   return (
