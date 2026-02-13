@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const { signup } = useAuth();
@@ -13,6 +14,11 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
 
     try {
       const response = await signup({ email, password });
@@ -62,6 +68,17 @@ export default function SignupPage() {
               placeholder="Password (min 8 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+            />
+          </div>
+          <div className="form-group">
+            <input
+              type="password"
+              className="form-input"
+              placeholder="Confirm password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={8}
             />

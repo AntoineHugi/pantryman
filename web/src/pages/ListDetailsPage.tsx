@@ -14,6 +14,9 @@ function ListDetailsPage() {
   const [showForm, setShowForm] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editedItemName, setEditedItemName] = useState("");
+  const [editedItemQuantity, setEditedItemQuantity] = useState(1);
 
   useEffect(() => {
     if (!id) return;
@@ -120,6 +123,45 @@ function ListDetailsPage() {
     }
   };
 
+  const handleEditItem = (item: Item) => {
+    setEditingItemId(item.id);
+    setEditedItemName(item.name);
+    setEditedItemQuantity(item.quantity);
+  };
+
+  const handleSaveItem = async (itemId: string) => {
+    if (!id || !editedItemName.trim()) return;
+
+    try {
+      await itemsApi.update(id, itemId, {
+        name: editedItemName,
+        quantity: editedItemQuantity,
+      });
+
+      setList(prev =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map(it =>
+                it.id === itemId
+                  ? { ...it, name: editedItemName, quantity: editedItemQuantity }
+                  : it
+              ),
+            }
+          : prev
+      );
+      setEditingItemId(null);
+    } catch (err) {
+      console.error("Failed to update item", err);
+    }
+  };
+
+  const handleCancelEditItem = () => {
+    setEditingItemId(null);
+    setEditedItemName("");
+    setEditedItemQuantity(1);
+  };
+
   const handleEditName = () => {
     if (list) {
       setEditedName(list.name);
@@ -215,49 +257,87 @@ function ListDetailsPage() {
           <ul className="items-list">
             {list.items.map((item) => (
               <li key={item.id} className="item-card">
-                <div className="item-content">
-                  <div
-                    className="item-info"
-                    onClick={() => toggleCheck(item)}
-                    style={{
-                      textDecoration: item.isChecked ? 'line-through' : 'none',
-                      opacity: item.isChecked ? 0.6 : 1,
-                    }}
-                  >
-                    <span className="item-name">{item.name}</span>
-                    <span className="item-quantity">x{item.quantity}</span>
+                {editingItemId === item.id ? (
+                  <div className="item-edit-form">
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={editedItemName}
+                        onChange={(e) => setEditedItemName(e.target.value)}
+                        autoFocus
+                        style={{ flex: 1, minWidth: '100px' }}
+                      />
+                      <input
+                        type="number"
+                        className="form-input"
+                        min={1}
+                        value={editedItemQuantity}
+                        onChange={(e) => setEditedItemQuantity(Number(e.target.value))}
+                        style={{ width: '60px' }}
+                      />
+                      <button className="btn btn-primary btn-small" onClick={() => handleSaveItem(item.id)}>
+                        Save
+                      </button>
+                      <button className="btn btn-secondary btn-small" onClick={handleCancelEditItem}>
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <div className="item-actions">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleIncrease(item);
+                ) : (
+                  <div className="item-content">
+                    <div
+                      className="item-info"
+                      onClick={() => toggleCheck(item)}
+                      style={{
+                        textDecoration: item.isChecked ? 'line-through' : 'none',
+                        opacity: item.isChecked ? 0.6 : 1,
                       }}
-                      title="Increase quantity"
                     >
-                      +
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDecrease(item);
-                      }}
-                      title="Decrease quantity"
-                    >
-                      −
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(item.id);
-                      }}
-                      title="Delete item"
-                      style={{ color: '#dc3545' }}
-                    >
-                      ✕
-                    </button>
+                      <span className="item-name">{item.name}</span>
+                      <span className="item-quantity">x{item.quantity}</span>
+                    </div>
+                    <div className="item-actions">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditItem(item);
+                        }}
+                        title="Edit item"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleIncrease(item);
+                        }}
+                        title="Increase quantity"
+                      >
+                        +
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDecrease(item);
+                        }}
+                        title="Decrease quantity"
+                      >
+                        −
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(item.id);
+                        }}
+                        title="Delete item"
+                        style={{ color: '#dc3545' }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </li>
             ))}
           </ul>
