@@ -33,6 +33,17 @@ data class ResendVerificationRequest(
 )
 
 @Serializable
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
+)
+
+@Serializable
+data class DeleteAccountRequest(
+    val password: String
+)
+
+@Serializable
 data class User(
     val id: String,
     val email: String,

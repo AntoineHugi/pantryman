@@ -1,6 +1,7 @@
 package org.pantry.repositories
 
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.pantry.models.User
 import org.pantry.postgres.tables.UserTable
@@ -62,6 +63,20 @@ class UserRepository {
             UserTable.update({ UserTable.id eq userId }) {
                 it[verificationToken] = token
             }
+        }
+    }
+
+    fun updatePassword(userId: UUID, passwordHash: String) {
+        transaction {
+            UserTable.update({ UserTable.id eq userId }) {
+                it[UserTable.passwordHash] = passwordHash
+            }
+        }
+    }
+
+    fun delete(userId: UUID) {
+        transaction {
+            UserTable.deleteWhere { id eq userId }
         }
     }
 }

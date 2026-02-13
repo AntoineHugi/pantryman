@@ -87,6 +87,33 @@ class AuthService(
         emailService.sendVerificationEmail(email, newToken)
     }
 
+    fun changePassword(userId: UUID, currentPassword: String, newPassword: String) {
+        val user = userRepository.getById(userId)
+            ?: throw IllegalArgumentException("User not found")
+
+        if (!BCrypt.checkpw(currentPassword, user.passwordHash)) {
+            throw SecurityException("Current password is incorrect")
+        }
+
+        if (newPassword.length < 8) {
+            throw IllegalArgumentException("New password must be at least 8 characters")
+        }
+
+        val newHash = BCrypt.hashpw(newPassword, BCrypt.gensalt(10))
+        userRepository.updatePassword(userId, newHash)
+    }
+
+    fun deleteAccount(userId: UUID, password: String) {
+        val user = userRepository.getById(userId)
+            ?: throw IllegalArgumentException("User not found")
+
+        if (!BCrypt.checkpw(password, user.passwordHash)) {
+            throw SecurityException("Password is incorrect")
+        }
+
+        userRepository.delete(userId)
+    }
+
     private fun generateToken(userId: UUID): String {
         return JWT.create()
             .withAudience(jwtAudience)
