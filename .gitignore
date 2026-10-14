@@ -1,0 +1,6 @@
+.DS_Store
+.idea/
+.vscode/
+.claude/settings.local.json
+# Pre-merge copies of the old repos (safe to delete)
+_old/

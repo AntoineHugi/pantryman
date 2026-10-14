@@ -1,0 +1,68 @@
+# Pantryman
+
+Personal grocery-list app for me, my partner and relatives. Started as a hand-written learning project; it is now developed primarily with AI assistance, and the priority is shipping features quickly without breaking things.
+
+## Product direction
+
+1. **Mobile app (APK)** for family members. Plan: make the web app a PWA, then wrap it with Capacitor. Not a separate native rewrite.
+2. **Sharing via households.** Lists (and later recipes) belong to a household, not a single user. This comes before recipes.
+3. **Recipes → grocery list.** Recipe database with ingredients; the user picks recipes for the week and the grocery list is generated (scaled by servings, merged by ingredient + unit, pantry staples skipped).
+
+The full roadmap and progress are in `docs/improvement-plan.md`. Update its Progress section when a step lands.
+
+## Layout
+
+One git repo (GitHub: `AntoineHugi/pantryman`). The old `pantryman-web` repo was merged in on 2026-10-14 with its history.
+
+- `backend/`: backend. Kotlin, Ktor 3 (Netty), Exposed (DSL, not DAO), Flyway, Postgres, Koin DI, JWT auth, Resend for email.
+- `app/`: frontend. React 19, TypeScript, Vite, react-router, axios.
+- `docs/`: plans and design notes.
+
+### Backend structure (`backend/src/main/kotlin/org/pantry/`)
+
+- `plugins/`: Ktor route definitions (`*API.kt`), JWT config, rate limiting. Routes do HTTP concerns plus ownership checks.
+- `services/`: business rules and validation (throw `IllegalArgumentException` for bad input).
+- `repositories/`: Exposed queries, each wrapped in `transaction {}`.
+- `postgres/tables/`: Exposed table objects. **They must mirror the Flyway migrations.**
+- `models/`: `@Serializable` request/response DTOs.
+- `mappers/`: `ResultRow` → model.
+- `di/AppModule.kt`: Koin wiring.
+- Dependency versions: `gradle/libs.versions.toml`.
+- `src/main/resources/db/migration/`: Flyway migrations `V<n>__Description.sql`.
+
+### Frontend structure (`app/src/`)
+
+- `api/`: axios client and one module per resource (`lists.ts`, `items.ts`, `auth.ts`), plus `types.ts`. Pages call these modules and never call axios directly.
+- `hooks/useGroceryLists.ts`: TanStack Query hooks (queries + mutations, optimistic item updates). Pages use these for server data instead of `useEffect` + `useState`.
+- `pages/`, `components/`, `contexts/AuthContext.tsx` (token in localStorage; the context object is in `AuthContextValue.ts`), `hooks/`.
+
+## Commands
+
+Backend (from `backend/`):
+- Start the local DB: `docker compose up -d postgres` (pgAdmin is on :5050).
+- Run: `set -a; source .env; set +a; ./gradlew run` (serves on :8000). Ktor does **not** load `.env` itself. `JWT_SECRET` is required, and the app refuses to start without it.
+- Test: `./gradlew test`. Repository tests (`*RepositoryTest`) use Testcontainers and need Docker running. API tests (`*IT`) and unit tests use H2 or mocks and don't.
+
+Frontend (from `app/`):
+- `npm run dev` (Vite on :5173; the API URL comes from `VITE_API_URL`, default `http://localhost:8000`).
+- `npx tsc -b`, `npm run lint`, `npm run build`.
+
+Run the relevant tests, plus the typecheck for frontend changes, before calling a change done. CI (`.github/workflows/ci.yml`, one job each for `backend` and `app`) runs the same checks on push and on pull requests.
+
+## Deployment
+
+- **Status (2026-10-14): the backend and production DB are down.** The Koyeb account was lost, and moving to a new host is pending (see `docs/improvement-plan.md` §5). Develop and test locally until then.
+- Backend: Docker image (`backend/Dockerfile`, build context `backend/`, port 8000), previously on Koyeb (`koyeb.yaml`). Env vars: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `VERIFICATION_BASE_URL`, `FRONTEND_BASE_URL`.
+- Frontend: Vercel (`app/vercel.json` SPA rewrite), served at pantryman.de. The Vercel project's root directory must be `app`. Until it's repointed, Vercel still deploys from the old `pantryman-web` repo. The CORS allow-list is in `Application.kt`.
+- Flyway migrations run automatically at backend startup.
+
+## Conventions and gotchas
+
+- **Authorization:** every route under `authenticate("auth-jwt")` gets the user from `call.userId` (the JWT claim) and never from the request body. Any query on a child resource must be scoped by its parent. For example, item queries always filter by `listId` as well as `itemId`, after the route has checked that the user owns the list. Add a test for cross-user access whenever you add an endpoint.
+- **Migrations:** never edit an applied migration; add a new `V<n+1>__...sql`. Update the matching Exposed table object at the same time. Tests build their schema from the Exposed objects (`SchemaUtils.create`), not from the migrations, so a mismatch passes the tests and then breaks in production.
+- **Ordering:** Postgres has no stable row order. Queries that return lists must `orderBy` (currently `createdAt`, then `id`).
+- **Emails** are stored trimmed and lowercase, and looked up case-insensitively.
+- **JSON:** the server ignores unknown keys, so older installed clients keep working when request fields are removed. Prefer additive API changes, because mobile clients will lag behind deploys.
+- **Errors:** routes don't catch exceptions. They throw, and `plugins/StatusPages.kt` maps them (`IllegalArgumentException` → 400, `ForbiddenException` → 403, Ktor `NotFoundException` → 404, …). Parse path IDs with `call.uuidParameter("listId")`. Responses use `{"error": "message"}`. The frontend reads them with `getErrorMessage()` in `api/client.ts`. The axios 401 interceptor logs the user out, except on `/auth/*` endpoints, which return 401 for wrong credentials.
+- **Auth endpoints** (signup, login, resend-verification) are rate limited per client IP (`plugins/RateLimiting.kt`).
+- Ktor YAML env syntax is `${VAR}` (required) or `${VAR:default}`.
