@@ -1,23 +1,15 @@
-import { createContext, useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import type { SignupRequest, LoginRequest, SignupResponse } from '../api/types';
-
-interface AuthContextType {
-  isAuthenticated: boolean;
-  token: string | null;
-  userId: string | null;
-  signup: (data: SignupRequest) => Promise<SignupResponse>;
-  login: (data: LoginRequest) => Promise<void>;
-  logout: () => void;
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from './AuthContextValue';
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(
     localStorage.getItem('authToken')
   );
@@ -44,6 +36,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = () => {
     authApi.logout();
+    // Don't show the previous user's lists to whoever logs in next
+    queryClient.clear();
     setToken(null);
     setUserId(null);
   };

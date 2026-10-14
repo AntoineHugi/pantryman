@@ -1,16 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { listsApi } from "../api/lists";
-import { itemsApi } from "../api/items";
-import type { Item, GroceryList } from "../api/types";
+import { getErrorMessage } from "../api/client";
+import type { Item } from "../api/types";
 import AddItemForm from "../components/AddItemForm";
+import { useDeleteItem, useList, useRenameList, useUpdateItem } from "../hooks/useGroceryLists";
 import '../App.css';
 
 function ListDetailsPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [list, setList] = useState<GroceryList | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -18,109 +16,28 @@ function ListDetailsPage() {
   const [editedItemName, setEditedItemName] = useState("");
   const [editedItemQuantity, setEditedItemQuantity] = useState(1);
 
-  useEffect(() => {
-    if (!id) return;
-    listsApi
-      .getById(id)
-      .then((data) => setList(data))
-      .catch((err) => {
-        console.error("Failed to fetch list:", err);
-        setError("Could not load grocery list");
-      });
-  }, [id]);
+  const { data: list, error } = useList(id);
+  const updateItem = useUpdateItem(id);
+  const deleteItem = useDeleteItem(id);
+  const renameList = useRenameList(id);
+  // Item changes show immediately and roll back on failure; surface the last failure
+  const actionError = updateItem.error ?? deleteItem.error;
 
-  const handleItemAdded = (newItem: Item) => {
-    setList((prev) =>
-      prev ? { ...prev, items: [...prev.items, newItem] } : prev
-    );
-    setShowForm(false);
+  const handleIncrease = (item: Item) => {
+    updateItem.mutate({ itemId: item.id, data: { quantity: item.quantity + 1 } });
   };
 
-  const handleIncrease = async (item: Item) => {
-    if (!id) return;
-
-    try {
-      await itemsApi.update(id, item.id, {
-        quantity: item.quantity + 1,
-      });
-
-      setList(prev =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map(it =>
-                it.id === item.id ? { ...it, quantity: it.quantity + 1 } : it
-              ),
-            }
-          : prev
-      );
-    } catch (err) {
-      console.error("Failed to increase quantity", err);
-    }
+  const handleDecrease = (item: Item) => {
+    if (item.quantity <= 1) return;
+    updateItem.mutate({ itemId: item.id, data: { quantity: item.quantity - 1 } });
   };
 
-  const handleDecrease = async (item: Item) => {
-    if (!id || item.quantity <= 1) return;
-
-    try {
-      await itemsApi.update(id, item.id, {
-        quantity: item.quantity - 1,
-      });
-
-      setList(prev =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map(it =>
-                it.id === item.id ? { ...it, quantity: it.quantity - 1 } : it
-              ),
-            }
-          : prev
-      );
-    } catch (err) {
-      console.error("Failed to decrease quantity", err);
-    }
+  const handleDelete = (itemId: string) => {
+    deleteItem.mutate(itemId);
   };
 
-  const handleDelete = async (itemId: string) => {
-    if (!id) return;
-
-    try {
-      await itemsApi.delete(id, itemId);
-      setList((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.filter((item) => item.id !== itemId),
-            }
-          : prev
-      );
-    } catch (err) {
-      console.error("Failed to delete item", err);
-    }
-  };
-
-  const toggleCheck = async (item: Item) => {
-    if (!id) return;
-
-    try {
-      await itemsApi.update(id, item.id, {
-        isChecked: !item.isChecked,
-      });
-
-      setList(prev =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map(it =>
-                it.id === item.id ? { ...it, isChecked: !it.isChecked } : it
-              ),
-            }
-          : prev
-      );
-    } catch (err) {
-      console.error("Failed to toggle check", err);
-    }
+  const toggleCheck = (item: Item) => {
+    updateItem.mutate({ itemId: item.id, data: { isChecked: !item.isChecked } });
   };
 
   const handleEditItem = (item: Item) => {
@@ -129,31 +46,11 @@ function ListDetailsPage() {
     setEditedItemQuantity(item.quantity);
   };
 
-  const handleSaveItem = async (itemId: string) => {
-    if (!id || !editedItemName.trim()) return;
+  const handleSaveItem = (itemId: string) => {
+    if (!editedItemName.trim()) return;
 
-    try {
-      await itemsApi.update(id, itemId, {
-        name: editedItemName,
-        quantity: editedItemQuantity,
-      });
-
-      setList(prev =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map(it =>
-                it.id === itemId
-                  ? { ...it, name: editedItemName, quantity: editedItemQuantity }
-                  : it
-              ),
-            }
-          : prev
-      );
-      setEditingItemId(null);
-    } catch (err) {
-      console.error("Failed to update item", err);
-    }
+    updateItem.mutate({ itemId, data: { name: editedItemName, quantity: editedItemQuantity } });
+    setEditingItemId(null);
   };
 
   const handleCancelEditItem = () => {
@@ -169,17 +66,13 @@ function ListDetailsPage() {
     }
   };
 
-  const handleSaveName = async () => {
-    if (!id || !editedName.trim()) return;
+  const handleSaveName = () => {
+    if (!editedName.trim()) return;
 
-    try {
-      await listsApi.update(id, editedName);
-      setList(prev => prev ? { ...prev, name: editedName } : prev);
-      setIsEditingName(false);
-    } catch (err) {
-      console.error("Failed to update list name", err);
-      alert("Could not update list name");
-    }
+    renameList.mutate(editedName, {
+      onSuccess: () => setIsEditingName(false),
+      onError: (err) => alert(getErrorMessage(err, "Could not update list name")),
+    });
   };
 
   const handleCancelEdit = () => {
@@ -187,7 +80,7 @@ function ListDetailsPage() {
     setEditedName("");
   };
 
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
+  if (error) return <p style={{ color: "red" }}>{getErrorMessage(error, "Could not load grocery list")}</p>;
   if (!list) return <div className="loading">Loading...</div>;
 
   return (
@@ -246,6 +139,10 @@ function ListDetailsPage() {
         <div className="section-header">
           <h2>Items</h2>
         </div>
+
+        {actionError && (
+          <p style={{ color: "red" }}>{getErrorMessage(actionError, "Could not update item")}</p>
+        )}
 
         {list.items.length === 0 && !showForm && (
           <div className="empty-state">
@@ -352,7 +249,7 @@ function ListDetailsPage() {
       {showForm && (
         <AddItemForm
           listId={list.id}
-          onItemAdded={handleItemAdded}
+          onItemAdded={() => setShowForm(false)}
           onCancel={() => setShowForm(false)}
         />
       )}

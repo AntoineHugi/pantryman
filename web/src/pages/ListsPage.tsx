@@ -1,58 +1,37 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { listsApi } from "../api/lists";
-import { useAuth } from "../hooks/useAuth";
-import type { GroceryList } from "../api/types";
+import { getErrorMessage } from "../api/client";
+import { useCreateList, useDeleteList, useLists } from "../hooks/useGroceryLists";
 import "../App.css";
 
 function ListsPage() {
-  const [lists, setLists] = useState<GroceryList[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [newListName, setNewListName] = useState("");
-  const { userId } = useAuth();
+  const { data: lists = [], isPending, error } = useLists();
+  const createList = useCreateList();
+  const deleteList = useDeleteList();
 
-  useEffect(() => {
-    listsApi
-      .getAll()
-      .then((data) => setLists(data))
-      .catch((err) => {
-        console.error("Failed to fetch lists:", err);
-        setError("Could not load grocery lists");
-      });
-  }, []);
-
-  const handleAddList = async () => {
+  const handleAddList = () => {
     if (!newListName.trim()) return alert("List name cannot be empty!");
-    if (!userId) return alert("You must be logged in to create a list");
 
-    try {
-      const createdList = await listsApi.create({
-        name: newListName,
-        userId: userId,
-      });
-      setLists((prev) => [...prev, createdList]);
-      setNewListName("");
-      setShowForm(false);
-    } catch (err) {
-      console.error("Failed to create list:", err);
-      alert("Could not create list");
-    }
+    createList.mutate(newListName, {
+      onSuccess: () => {
+        setNewListName("");
+        setShowForm(false);
+      },
+      onError: (err) => alert(getErrorMessage(err, "Could not create list")),
+    });
   };
 
-  const handleDeleteList = async (listId: string, e: React.MouseEvent) => {
+  const handleDeleteList = (listId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (!confirm("Are you sure you want to delete this list?")) return;
 
-    try {
-      await listsApi.delete(listId);
-      setLists((prev) => prev.filter((list) => list.id !== listId));
-    } catch (err) {
-      console.error("Failed to delete list:", err);
-      alert("Could not delete list");
-    }
+    deleteList.mutate(listId, {
+      onError: (err) => alert(getErrorMessage(err, "Could not delete list")),
+    });
   };
 
   return (
@@ -61,9 +40,11 @@ function ListsPage() {
         <h2>Your Grocery Lists</h2>
       </div>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: "red" }}>{getErrorMessage(error, "Could not load grocery lists")}</p>}
 
-      {lists.length === 0 && !showForm ? (
+      {isPending && !error && <div className="loading">Loading...</div>}
+
+      {isPending ? null : lists.length === 0 && !showForm ? (
         <div className="empty-state">
           <p>No grocery lists yet</p>
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>
@@ -125,7 +106,7 @@ function ListsPage() {
             />
           </div>
           <div className="form-actions">
-            <button className="btn btn-primary" onClick={handleAddList}>
+            <button className="btn btn-primary" onClick={handleAddList} disabled={createList.isPending}>
               Create
             </button>
             <button className="btn btn-secondary" onClick={() => setShowForm(false)}>

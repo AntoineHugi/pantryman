@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
+import { getErrorMessage } from '../api/client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,11 +20,11 @@ export default function LoginPage() {
     try {
       await login({ email, password });
       navigate('/lists');
-    } catch (err: any) {
-      if (err.response?.status === 403) {
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.status === 403) {
         setError('Please verify your email before logging in.');
       } else {
-        setError(err.response?.data?.error || 'Login failed');
+        setError(getErrorMessage(err, 'Login failed'));
       }
     }
   };

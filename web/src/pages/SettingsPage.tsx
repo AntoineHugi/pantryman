@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/auth';
+import { getErrorMessage } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import '../App.css';
 
@@ -30,8 +31,8 @@ function SettingsPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordMessage({ text: 'New password must be at least 6 characters.', isError: true });
+    if (newPassword.length < 8) {
+      setPasswordMessage({ text: 'New password must be at least 8 characters.', isError: true });
       return;
     }
 
@@ -42,8 +43,11 @@ function SettingsPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch {
-      setPasswordMessage({ text: 'Failed to change password. Check your current password.', isError: true });
+    } catch (err) {
+      setPasswordMessage({
+        text: getErrorMessage(err, 'Failed to change password. Check your current password.'),
+        isError: true,
+      });
     } finally {
       setPasswordLoading(false);
     }
@@ -56,8 +60,11 @@ function SettingsPage() {
       await authApi.deleteAccount(deletePassword);
       logout();
       navigate('/login');
-    } catch {
-      setDeleteMessage({ text: 'Failed to delete account. Check your password.', isError: true });
+    } catch (err) {
+      setDeleteMessage({
+        text: getErrorMessage(err, 'Failed to delete account. Check your password.'),
+        isError: true,
+      });
     } finally {
       setDeleteLoading(false);
     }
@@ -91,7 +98,7 @@ function SettingsPage() {
             <input
               type="password"
               className="form-input"
-              placeholder="New password"
+              placeholder="New password (min 8 characters)"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required

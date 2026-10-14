@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { getErrorMessage } from '../api/client';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -23,8 +24,8 @@ export default function SignupPage() {
     try {
       const response = await signup({ email, password });
       setSuccess(response.message);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Signup failed');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Signup failed'));
     }
   };
 

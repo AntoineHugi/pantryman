@@ -41,11 +41,9 @@ export interface User {
   
   export interface CreateListRequest {
     name: string;
-    userId: string;
   }
   
   export interface CreateItemRequest {
-    listId: string;
     name: string;
     quantity: number;
   }

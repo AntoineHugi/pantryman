@@ -1,41 +1,30 @@
 import { useState } from "react";
-import apiClient from '../api/client';
+import { getErrorMessage } from '../api/client';
+import { useAddItem } from '../hooks/useGroceryLists';
 
 type AddItemFormProps = {
   listId: string;
-  onItemAdded: (newItem: Item) => void;
+  onItemAdded: () => void;
   onCancel: () => void;
-};
-
-type Item = {
-  id: string;
-  name: string;
-  quantity: number;
-  isChecked: boolean;
-  isFavorite: boolean;
 };
 
 function AddItemForm({ listId, onItemAdded, onCancel }: AddItemFormProps) {
   const [itemName, setItemName] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [error, setError] = useState<string | null>(null);
+  const addItem = useAddItem(listId);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    try {
-      const payload = { listId, name: itemName, quantity };
-
-      const res = await apiClient.post<Item>(`/lists/${listId}/items`, payload);
-      onItemAdded(res.data);
-
-      setItemName("");
-      setQuantity(1);
-    } catch (err) {
-      console.error("Failed to add item:", err);
-      setError("Could not add item. Check payload format.");
-    }
+    addItem.mutate(
+      { name: itemName, quantity },
+      {
+        onSuccess: () => {
+          setItemName("");
+          setQuantity(1);
+          onItemAdded();
+        },
+      }
+    );
   };
 
   return (
@@ -63,9 +52,13 @@ function AddItemForm({ listId, onItemAdded, onCancel }: AddItemFormProps) {
             required
           />
         </div>
-        {error && <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>}
+        {addItem.isError && (
+          <p style={{ color: "red", marginBottom: "1rem" }}>
+            {getErrorMessage(addItem.error, "Could not add item")}
+          </p>
+        )}
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="btn btn-primary" disabled={addItem.isPending}>
             Add Item
           </button>
           <button type="button" className="btn btn-secondary" onClick={onCancel}>

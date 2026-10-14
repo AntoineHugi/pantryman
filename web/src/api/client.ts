@@ -14,11 +14,14 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 errors (expired/invalid token)
+// Handle 401 errors (expired/invalid token).
+// /auth/* endpoints also return 401 for wrong credentials (login, current-password
+// checks); those should show an error on the page, not log the user out.
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isAuthEndpoint = error.config?.url?.startsWith('/auth/');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('userId');
       window.location.href = '/login';
@@ -26,5 +29,13 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Extracts the backend's `{ error: "..." }` message from a failed request.
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError<{ error?: string }>(err)) {
+    return err.response?.data?.error || fallback;
+  }
+  return fallback;
+}
 
 export default apiClient;
