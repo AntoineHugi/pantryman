@@ -4,8 +4,12 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CreateGroceryListRequest(
-    val name: String,
-    val userId: String
+    val name: String
+)
+
+@Serializable
+data class UpdateGroceryListRequest(
+    val name: String
 )
 
 @Serializable

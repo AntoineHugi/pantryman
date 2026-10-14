@@ -25,7 +25,8 @@ class UserRepository {
     fun getByEmail(email: String): User? {
         return transaction {
             UserTable.selectAll()
-                .where { UserTable.email eq email }
+                // Case-insensitive so accounts created before emails were normalized still match
+                .where { UserTable.email.lowerCase() eq email.lowercase() }
                 .map { it.toUser() }
                 .singleOrNull()
         }

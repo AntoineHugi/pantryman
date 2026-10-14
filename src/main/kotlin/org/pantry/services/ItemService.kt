@@ -8,18 +8,18 @@ import java.util.UUID
 class ItemService(
     private val repo: ItemRepository
 ) {
-    fun getAll(id: UUID): List<Item> = repo.getAll(id)
+    fun getAll(listId: UUID): List<Item> = repo.getByListId(listId)
 
-    fun getById(id: UUID): Item? = repo.getById(id)
+    fun getById(listId: UUID, id: UUID): Item? = repo.getById(listId, id)
 
-    fun create(listId: String, name: String, quantity: Int): Item {
+    fun create(listId: UUID, name: String, quantity: Int): Item {
         val initBool = false
         val newId = UUID.randomUUID()
         return repo.create(newId, listId, name, quantity, initBool)
     }
 
-    fun update(id: UUID, update: ItemUpdateRequest): Boolean {
-        val existing = repo.getById(id) ?: return false
+    fun update(listId: UUID, id: UUID, update: ItemUpdateRequest): Boolean {
+        val existing = repo.getById(listId, id) ?: return false
 
         val newName = update.name ?: existing.name
         val newQuantity = update.quantity ?: existing.quantity
@@ -29,8 +29,8 @@ class ItemService(
         if (newName.isBlank()) throw IllegalArgumentException("Name cannot be blank")
         if (newQuantity < 1) throw IllegalArgumentException("Quantity cannot be below 1")
 
-        return repo.update(id, newName, newQuantity, newIsChecked, newIsFavorite)
+        return repo.update(listId, id, newName, newQuantity, newIsChecked, newIsFavorite)
     }
 
-    fun delete(id: UUID): Boolean = repo.delete(id)
+    fun delete(listId: UUID, id: UUID): Boolean = repo.delete(listId, id)
 }

@@ -13,6 +13,7 @@ class GroceryListRepository(
 ) {
     fun getAll(userID: UUID): List<GroceryList> = transaction {
         GroceryListTable.selectAll().where { GroceryListTable.userID eq userID }
+            .orderBy(GroceryListTable.createdAt to SortOrder.ASC, GroceryListTable.id to SortOrder.ASC)
             .map { it.toGroceryList(itemRepo) }
     }
 

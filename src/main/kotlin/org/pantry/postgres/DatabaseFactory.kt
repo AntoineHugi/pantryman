@@ -4,7 +4,6 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
-import java.sql.Connection
 import javax.sql.DataSource
 
 object DatabaseFactory {
@@ -35,6 +34,4 @@ object DatabaseFactory {
             .load()
             .migrate()
     }
-
-    fun getConnection(): Connection = dataSource.connection
 }

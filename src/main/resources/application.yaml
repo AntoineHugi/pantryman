@@ -11,13 +11,14 @@ db:
   password: "password"
 
 jwt:
-  secret: ${JWT_SECRET:-dev-secret-key-change-in-production}
+  # Required: no default, so the app refuses to start without a real secret
+  secret: ${JWT_SECRET}
   issuer: "pantry-app"
   audience: "pantry-users"
   realm: "Pantry App"
 
 resend:
-  apiKey: ${RESEND_API_KEY:-re_test_key}
-  fromEmail: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
-  verificationBaseUrl: ${VERIFICATION_BASE_URL:-http://localhost:8000}
-  frontendBaseUrl: ${FRONTEND_BASE_URL:-http://localhost:5173}
+  apiKey: ${RESEND_API_KEY:re_test_key}
+  fromEmail: ${RESEND_FROM_EMAIL:onboarding@resend.dev}
+  verificationBaseUrl: ${VERIFICATION_BASE_URL:http://localhost:8000}
+  frontendBaseUrl: ${FRONTEND_BASE_URL:http://localhost:5173}

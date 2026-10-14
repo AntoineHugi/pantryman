@@ -17,10 +17,9 @@ class GroceryListService(
     }
 
     fun update(id: UUID, newName: String, userID: UUID): Boolean {
-        val existing = repo.getById(id, userID) ?: return false
-
         if (newName.isBlank()) throw IllegalArgumentException("Name cannot be blank")
 
+        // Returns false when the list doesn't exist or belongs to someone else
         return repo.update(id, newName, userID)
     }
 

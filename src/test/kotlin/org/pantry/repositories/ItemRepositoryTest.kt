@@ -61,12 +61,12 @@ class ItemRepositoryTest {
         val id = UUID.randomUUID()
         val listId = UUID.randomUUID()
         groceryRepo.create(listId, "Groceries", testUserId)
-        val created = repo.create(id, listId.toString(), "Butter", 3, false)
+        val created = repo.create(id, listId, "Butter", 3, false)
 
         assertEquals("Butter", created.name)
         assertEquals(3, created.quantity)
 
-        val result = repo.getById(id)
+        val result = repo.getById(listId, id)
         assertNotNull(result)
     }
 
@@ -74,10 +74,10 @@ class ItemRepositoryTest {
     fun `2 - getAll returns full list`() {
         val listId = UUID.randomUUID()
         groceryRepo.create(listId, "Groceries", testUserId)
-        val item1 = repo.create(UUID.randomUUID(), listId.toString(), "Milk", 2, false)
-        val item2 = repo.create(UUID.randomUUID(), listId.toString(), "Bread", 1, false)
+        val item1 = repo.create(UUID.randomUUID(), listId, "Milk", 2, false)
+        val item2 = repo.create(UUID.randomUUID(), listId, "Bread", 1, false)
 
-        val result = repo.getAll(listId)
+        val result = repo.getByListId(listId)
 
         assertEquals(2, result.size)
         assertEquals(setOf(item1.name, item2.name), result.map { it.name }.toSet())
@@ -88,8 +88,8 @@ class ItemRepositoryTest {
         val id = UUID.randomUUID()
         val listId = UUID.randomUUID()
         groceryRepo.create(listId, "Groceries", testUserId)
-        repo.create(id, listId.toString(), "Eggs", 12, false)
-        val result = checkNotNull(repo.getById(id))
+        repo.create(id, listId, "Eggs", 12, false)
+        val result = checkNotNull(repo.getById(listId, id))
 
         assertNotNull(result)
         assertEquals("Eggs", result.name)
@@ -101,12 +101,12 @@ class ItemRepositoryTest {
         val id = UUID.randomUUID()
         val listId = UUID.randomUUID()
         groceryRepo.create(listId, "Groceries", testUserId)
-        repo.create(id, listId.toString(), "Eggs", 12, false)
+        repo.create(id, listId, "Eggs", 12, false)
 
-        val updated = repo.update(id, "Green Apples", 10, true, true)
+        val updated = repo.update(listId, id, "Green Apples", 10, true, true)
         assertTrue(updated)
 
-        val result = checkNotNull(repo.getById(id))
+        val result = checkNotNull(repo.getById(listId, id))
         assertEquals("Green Apples", result.name)
         assertEquals(10, result.quantity)
         assertTrue(result.isChecked)
@@ -118,12 +118,40 @@ class ItemRepositoryTest {
         val id = UUID.randomUUID()
         val listId = UUID.randomUUID()
         groceryRepo.create(listId, "Groceries", testUserId)
-        val created = repo.create(id, listId.toString(), "Oranges", 4, false)
+        val created = repo.create(id, listId, "Oranges", 4, false)
 
-        val deleted = repo.delete(id)
-        val afterDelete = repo.getById(id)
+        val deleted = repo.delete(listId, id)
+        val afterDelete = repo.getById(listId, id)
 
         assertTrue(deleted)
         assertNull(afterDelete)
+    }
+
+    @Test
+    fun `6 - item operations are scoped to their list`() {
+        val ownListId = UUID.randomUUID()
+        val otherListId = UUID.randomUUID()
+        groceryRepo.create(ownListId, "Mine", testUserId)
+        groceryRepo.create(otherListId, "Theirs", UUID.randomUUID())
+        val otherItemId = UUID.randomUUID()
+        repo.create(otherItemId, otherListId, "Their milk", 1, false)
+
+        assertNull(repo.getById(ownListId, otherItemId))
+        assertFalse(repo.update(ownListId, otherItemId, "Hacked", 1, true, true))
+        assertFalse(repo.delete(ownListId, otherItemId))
+        assertEquals("Their milk", repo.getById(otherListId, otherItemId)?.name)
+    }
+
+    @Test
+    fun `7 - getByListId returns items in creation order after updates`() {
+        val listId = UUID.randomUUID()
+        groceryRepo.create(listId, "Groceries", testUserId)
+        val names = listOf("Milk", "Bread", "Eggs", "Butter")
+        val ids = names.map { name -> UUID.randomUUID().also { repo.create(it, listId, name, 1, false) } }
+
+        repo.update(listId, ids[0], "Milk", 1, true, false)
+        repo.update(listId, ids[2], "Eggs", 6, true, false)
+
+        assertEquals(names, repo.getByListId(listId).map { it.name })
     }
 }

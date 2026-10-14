@@ -12,7 +12,6 @@ data class ItemUpdateRequest(
 
 @Serializable
 data class CreateItemRequest(
-    val listId: String,
     val name: String,
     val quantity: Int
 )

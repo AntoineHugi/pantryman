@@ -17,7 +17,9 @@ class AuthService(
     private val jwtAudience: String
 ) {
 
-    suspend fun signup(email: String, password: String): SignupResponse {
+    suspend fun signup(rawEmail: String, password: String): SignupResponse {
+        val email = normalizeEmail(rawEmail)
+
         // Validate input
         if (email.isBlank() || !email.contains("@")) {
             throw IllegalArgumentException("Invalid email")
@@ -39,8 +41,13 @@ class AuthService(
         val verificationToken = UUID.randomUUID()
         userRepository.create(userId, email, passwordHash, verificationToken)
 
-        // Send verification email
-        emailService.sendVerificationEmail(email, verificationToken)
+        // Send verification email; if it fails, remove the user so signup can be retried
+        try {
+            emailService.sendVerificationEmail(email, verificationToken)
+        } catch (e: Exception) {
+            userRepository.delete(userId)
+            throw e
+        }
 
         return SignupResponse(
             message = "Please check your email to verify your account.",
@@ -50,7 +57,7 @@ class AuthService(
 
     fun login(email: String, password: String): AuthResponse? {
         // Get user
-        val user = userRepository.getByEmail(email) ?: return null
+        val user = userRepository.getByEmail(normalizeEmail(email)) ?: return null
 
         // Verify password
         if (!BCrypt.checkpw(password, user.passwordHash)) {
@@ -74,7 +81,8 @@ class AuthService(
         return true
     }
 
-    suspend fun resendVerification(email: String) {
+    suspend fun resendVerification(rawEmail: String) {
+        val email = normalizeEmail(rawEmail)
         val user = userRepository.getByEmail(email)
             ?: throw IllegalArgumentException("No account found with this email.")
 
@@ -113,6 +121,8 @@ class AuthService(
 
         userRepository.delete(userId)
     }
+
+    private fun normalizeEmail(email: String): String = email.trim().lowercase()
 
     private fun generateToken(userId: UUID): String {
         return JWT.create()

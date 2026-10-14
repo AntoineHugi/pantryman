@@ -35,6 +35,8 @@ fun Application.module() {
         json(Json {
             prettyPrint = true
             isLenient = true
+            // Tolerate fields from older/newer clients (e.g. an outdated installed app)
+            ignoreUnknownKeys = true
         })
     }
     install(Koin) {
@@ -50,8 +52,9 @@ fun Application.module() {
 
     DatabaseFactory.init(url, user, password)
 
+    configureStatusPages()
     configureSecurity()
+    configureRateLimiting()
     authAPI()
-    menuApi()
     groceriesApi()
 }

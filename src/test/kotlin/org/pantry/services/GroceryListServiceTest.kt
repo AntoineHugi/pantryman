@@ -98,38 +98,25 @@ class GroceryListServiceTest {
     @Test
     fun `update should modify and return true for owner`() {
         val id = UUID.randomUUID()
-        val itemId = UUID.randomUUID()
-        val existing = GroceryList(
-            id.toString(),
-            "Groceries",
-            listOf(Item(itemId.toString(), "Milk", 2, false, false)),
-            testUserId.toString()
-        )
         val newName = "Weekly Groceries"
-
-        every { repo.getById(id, testUserId) } returns existing
         every { repo.update(id, newName, testUserId) } returns true
 
         val result = service.update(id, newName, testUserId)
 
         assertTrue(result)
-        verify {
-            repo.getById(id, testUserId)
-            repo.update(id, newName, testUserId)
-        }
+        verify(exactly = 1) { repo.update(id, newName, testUserId) }
     }
 
     @Test
-    fun `update should return false if item not found`() {
+    fun `update should return false if list not found or not owned`() {
         val id = UUID.randomUUID()
         val newName = "Weekly Groceries"
-        every { repo.getById(id, testUserId) } returns null
+        // The repository update is scoped by owner, so a miss updates 0 rows
+        every { repo.update(id, newName, testUserId) } returns false
 
         val result = service.update(id, newName, testUserId)
 
         assertFalse(result)
-        verify(exactly = 1) { repo.getById(id, testUserId) }
-        verify(exactly = 0) { repo.update(any(), any(), any()) }
     }
 
     @Test

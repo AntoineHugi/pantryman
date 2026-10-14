@@ -19,19 +19,20 @@ class ItemServiceTest {
     private val repo = mockk<ItemRepository>()
     private val service = ItemService(repo)
 
+    private val listId = UUID.randomUUID()
+
     @AfterEach fun tearDown() = clearMocks(repo)
 
     @Test
     fun `getAll should return items from repo`() {
-        val id = UUID.randomUUID()
-        val items = listOf(Item(id.toString(), "Milk", 2, false, false))
+        val items = listOf(Item(UUID.randomUUID().toString(), "Milk", 2, false, false))
 
-        every { repo.getAll(id) } returns items
+        every { repo.getByListId(listId) } returns items
 
-        val result = service.getAll(id)
+        val result = service.getAll(listId)
 
         assertEquals(items, result)
-        verify(exactly = 1) { repo.getAll(id) }
+        verify(exactly = 1) { repo.getByListId(listId) }
     }
 
     @Test
@@ -39,28 +40,27 @@ class ItemServiceTest {
         val id = UUID.randomUUID()
         val item = Item(id.toString(), "Milk", 1, false, false)
 
-        every { repo.getById(id) } returns item
+        every { repo.getById(listId, id) } returns item
 
-        val result = service.getById(id)
+        val result = service.getById(listId, id)
 
         assertEquals(item, result)
-        verify(exactly = 1) { repo.getById(id) }
+        verify(exactly = 1) { repo.getById(listId, id) }
     }
 
     @Test
     fun `getById with wrong id returns null`() {
         val id = UUID.randomUUID()
-        every { repo.getById(id) } returns null
+        every { repo.getById(listId, id) } returns null
 
-        val result = service.getById(id)
+        val result = service.getById(listId, id)
 
         assertNull(result)
-        verify(exactly = 1) { repo.getById(id) }
+        verify(exactly = 1) { repo.getById(listId, id) }
     }
 
     @Test
     fun `create should call repo with generated UUID and return created item`() {
-        val listId = "list-123"
         val name = "Bread"
         val quantity = 3
         val createdItem = Item(UUID.randomUUID().toString(), name, quantity, false, false)
@@ -80,40 +80,40 @@ class ItemServiceTest {
         val existing = Item(id.toString(), "Eggs", 5, false, false)
         val update = ItemUpdateRequest(name = "Milk", quantity = 6, isChecked = true, isFavorite = true)
 
-        every { repo.getById(id) } returns existing
-        every { repo.update(id, "Milk", 6, true, true) } returns true
+        every { repo.getById(listId, id) } returns existing
+        every { repo.update(listId, id, "Milk", 6, true, true) } returns true
 
-        val result = service.update(id, update)
+        val result = service.update(listId, id, update)
 
         assertTrue(result)
         verify {
-            repo.getById(id)
-            repo.update(id, "Milk", 6, true, true)
+            repo.getById(listId, id)
+            repo.update(listId, id, "Milk", 6, true, true)
         }
     }
 
     @Test
     fun `update should return false if item not found`() {
         val id = UUID.randomUUID()
-        every { repo.getById(id) } returns null
+        every { repo.getById(listId, id) } returns null
 
-        val result = service.update(id, ItemUpdateRequest(name = "Nothing"))
+        val result = service.update(listId, id, ItemUpdateRequest(name = "Nothing"))
 
         assertFalse(result)
-        verify(exactly = 1) { repo.getById(id) }
-        verify(exactly = 0) { repo.update(any(), any(), any(), any(), any()) }
+        verify(exactly = 1) { repo.getById(listId, id) }
+        verify(exactly = 0) { repo.update(any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun `update should throw if name is blank`() {
         val id = UUID.randomUUID()
         val existing = Item(id.toString(), "Milk", 2, false, false)
-        every { repo.getById(id) } returns existing
+        every { repo.getById(listId, id) } returns existing
 
         val update = ItemUpdateRequest(name = " ")
 
         val exception = assertThrows<IllegalArgumentException> {
-            service.update(id, update)
+            service.update(listId, id, update)
         }
 
         assertEquals("Name cannot be blank", exception.message)
@@ -123,12 +123,12 @@ class ItemServiceTest {
     fun `update should throw if quantity below 1`() {
         val id = UUID.randomUUID()
         val existing = Item(id.toString(), "Milk", 2, false, false)
-        every { repo.getById(id) } returns existing
+        every { repo.getById(listId, id) } returns existing
 
         val update = ItemUpdateRequest(quantity = 0)
 
         val exception = assertThrows<IllegalArgumentException> {
-            service.update(id, update)
+            service.update(listId, id, update)
         }
 
         assertEquals("Quantity cannot be below 1", exception.message)
@@ -137,11 +137,11 @@ class ItemServiceTest {
     @Test
     fun `delete should delegate to repo`() {
         val id = UUID.randomUUID()
-        every { repo.delete(id) } returns true
+        every { repo.delete(listId, id) } returns true
 
-        val result = service.delete(id)
+        val result = service.delete(listId, id)
 
         assertTrue(result)
-        verify(exactly = 1) { repo.delete(id) }
+        verify(exactly = 1) { repo.delete(listId, id) }
     }
 }

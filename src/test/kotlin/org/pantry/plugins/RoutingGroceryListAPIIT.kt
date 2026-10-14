@@ -38,6 +38,8 @@ import org.pantry.services.GroceryListService
 import org.pantry.services.ItemService
 import org.pantry.postgres.tables.ItemTable
 import org.pantry.postgres.tables.GroceryListTable
+import org.pantry.postgres.tables.UserTable
+import org.pantry.repositories.UserRepository
 
 class RoutingGroceriesApiIT : KoinTest {
 
@@ -66,8 +68,14 @@ class RoutingGroceriesApiIT : KoinTest {
             driver = "org.h2.Driver"
         )
         transaction {
-            SchemaUtils.create(GroceryListTable, ItemTable)
+            SchemaUtils.create(UserTable, GroceryListTable, ItemTable)
         }
+        createUser(testUserId)
+    }
+
+    // Lists reference users, so every list owner needs a real user row.
+    private fun createUser(id: UUID) {
+        UserRepository().create(id, "$id@example.com", "hash", UUID.randomUUID())
     }
 
     private fun generateTestToken(userId: UUID): String {
@@ -91,16 +99,23 @@ class RoutingGroceriesApiIT : KoinTest {
             install(ContentNegotiation) {
                 json()
             }
+            configureStatusPages()
             configureSecurity()
             groceriesApi()
         }
     }
 
+    // The default test client has no JSON serializer, so request bodies need this one.
+    private val ApplicationTestBuilder.jsonClient
+        get() = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) { json() }
+        }
+
     @Test
     fun `GET lists without token returns 401`() = testApplication {
         setupTestApplication()
 
-        val response = client.get("/lists")
+        val response = jsonClient.get("/lists")
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 
@@ -108,8 +123,8 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `POST grocery list returns 201 and creates list`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val response = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val response = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
@@ -131,15 +146,15 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `GET grocery List returns 200 and grocery lists`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val postResponse = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postResponse = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
         }
         assertEquals(HttpStatusCode.Created, postResponse.status)
 
-        val getResponse = client.get("/lists") {
+        val getResponse = jsonClient.get("/lists") {
             header("Authorization", "Bearer $testToken")
         }
         assertEquals(HttpStatusCode.OK, getResponse.status)
@@ -151,8 +166,8 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `GET grocery list ID returns 200 and list`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val postResponse = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postResponse = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
@@ -162,7 +177,7 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val getResponse = client.get("/lists/${createdList.id}") {
+        val getResponse = jsonClient.get("/lists/${createdList.id}") {
             header("Authorization", "Bearer $testToken")
         }
         assertEquals(HttpStatusCode.OK, getResponse.status)
@@ -177,8 +192,8 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `PATCH grocery list ID returns 200 and updates list`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val postResponse = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postResponse = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
@@ -189,7 +204,7 @@ class RoutingGroceriesApiIT : KoinTest {
         assertEquals(newList.name, createdList.name)
 
         val newName = "Daily Groceries"
-        val patchResponse = client.patch("/lists/${createdList.id}") {
+        val patchResponse = jsonClient.patch("/lists/${createdList.id}") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(mapOf("name" to newName))
@@ -204,8 +219,8 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `DELETE grocery list ID returns 200 and deletes list`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val postResponse = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postResponse = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
@@ -213,7 +228,7 @@ class RoutingGroceriesApiIT : KoinTest {
         assertEquals(HttpStatusCode.Created, postResponse.status)
         val createdList: GroceryList = postResponse.body()
 
-        val response = client.delete("/lists/${createdList.id}") {
+        val response = jsonClient.delete("/lists/${createdList.id}") {
             header("Authorization", "Bearer $testToken")
         }
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -225,8 +240,8 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `Post item returns 201 and creates item`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val postListResponse = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postListResponse = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
@@ -236,8 +251,8 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val newItem = CreateItemRequest(listId = createdList.id, name = "milk", quantity = 1)
-        val postItemResponse = client.post("/lists/${createdList.id}/items") {
+        val newItem = CreateItemRequest(name = "milk", quantity = 1)
+        val postItemResponse = jsonClient.post("/lists/${createdList.id}/items") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newItem)
@@ -256,8 +271,8 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `GET items returns 200 and item list`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val postListResponse = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postListResponse = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
@@ -267,15 +282,15 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val newItem = CreateItemRequest(listId = createdList.id, name = "milk", quantity = 1)
-        val postItemResponse = client.post("/lists/${createdList.id}/items") {
+        val newItem = CreateItemRequest(name = "milk", quantity = 1)
+        val postItemResponse = jsonClient.post("/lists/${createdList.id}/items") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newItem)
         }
         assertEquals(HttpStatusCode.Created, postItemResponse.status)
 
-        val getResponse = client.get("/lists/${createdList.id}/items") {
+        val getResponse = jsonClient.get("/lists/${createdList.id}/items") {
             header("Authorization", "Bearer $testToken")
         }
         assertEquals(HttpStatusCode.OK, getResponse.status)
@@ -290,8 +305,8 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `DELETE item ID returns 200 and deletes item`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val postListResponse = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postListResponse = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
@@ -301,8 +316,8 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val newItem = CreateItemRequest(listId = createdList.id, name = "milk", quantity = 1)
-        val postItemResponse = client.post("/lists/${createdList.id}/items") {
+        val newItem = CreateItemRequest(name = "milk", quantity = 1)
+        val postItemResponse = jsonClient.post("/lists/${createdList.id}/items") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newItem)
@@ -312,11 +327,11 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdItem)
         assertEquals(newItem.name, createdItem.name)
 
-        val response = client.delete("/lists/${createdList.id}/items/${createdItem.id}") {
+        val response = jsonClient.delete("/lists/${createdList.id}/items/${createdItem.id}") {
             header("Authorization", "Bearer $testToken")
         }
         assertEquals(HttpStatusCode.NoContent, response.status)
-        val deletedItem = itemRepo.getById(UUID.fromString(createdItem.id))
+        val deletedItem = itemRepo.getById(UUID.fromString(createdList.id), UUID.fromString(createdItem.id))
         assertNull(deletedItem)
     }
 
@@ -324,8 +339,8 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `PATCH item ID returns 200 and updates item`() = testApplication {
         setupTestApplication()
 
-        val newList = CreateGroceryListRequest(name = "Weekly Groceries", testUserId.toString())
-        val postListResponse = client.post("/lists") {
+        val newList = CreateGroceryListRequest(name = "Weekly Groceries")
+        val postListResponse = jsonClient.post("/lists") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newList)
@@ -335,8 +350,8 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val newItem = CreateItemRequest(listId = createdList.id, name = "milk", quantity = 1)
-        val postItemResponse = client.post("/lists/${createdList.id}/items") {
+        val newItem = CreateItemRequest(name = "milk", quantity = 1)
+        val postItemResponse = jsonClient.post("/lists/${createdList.id}/items") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(newItem)
@@ -347,13 +362,13 @@ class RoutingGroceriesApiIT : KoinTest {
         assertEquals(newItem.name, createdItem.name)
 
         val newName = "eggs"
-        val patchResponse = client.patch("/lists/${createdList.id}/items/${createdItem.id}") {
+        val patchResponse = jsonClient.patch("/lists/${createdList.id}/items/${createdItem.id}") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
             setBody(mapOf("name" to newName))
         }
         assertEquals(HttpStatusCode.OK, patchResponse.status)
-        val updatedItemName = itemRepo.getById(UUID.fromString(createdItem.id))
+        val updatedItemName = itemRepo.getById(UUID.fromString(createdList.id), UUID.fromString(createdItem.id))
         assertNotNull(updatedItemName)
         assertEquals(newName, updatedItemName.name)
     }
@@ -362,7 +377,7 @@ class RoutingGroceriesApiIT : KoinTest {
     fun `GET lists with invalid token returns 401`() = testApplication {
         setupTestApplication()
 
-        val response = client.get("/lists") {
+        val response = jsonClient.get("/lists") {
             header("Authorization", "Bearer invalid-token-xyz")
         }
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -379,7 +394,7 @@ class RoutingGroceriesApiIT : KoinTest {
             .withExpiresAt(Date(System.currentTimeMillis() - 10000))
             .sign(Algorithm.HMAC256("test-secret-key-for-testing-only"))
 
-        val response = client.get("/lists") {
+        val response = jsonClient.get("/lists") {
             header("Authorization", "Bearer $expiredToken")
         }
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -396,9 +411,101 @@ class RoutingGroceriesApiIT : KoinTest {
             .withExpiresAt(Date(System.currentTimeMillis() + 60000))
             .sign(Algorithm.HMAC256("test-secret-key-for-testing-only"))
 
-        val response = client.get("/lists") {
+        val response = jsonClient.get("/lists") {
             header("Authorization", "Bearer $wrongIssuerToken")
         }
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `cannot modify another user's item through own list`() = testApplication {
+        setupTestApplication()
+
+        val ownList = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+        val otherUserId = UUID.randomUUID().also { createUser(it) }
+        val otherList = groceryListRepo.create(UUID.randomUUID(), "Theirs", otherUserId)
+        val otherItem = itemRepo.create(UUID.randomUUID(), UUID.fromString(otherList.id), "their milk", 1, false)
+
+        val patchResponse = jsonClient.patch("/lists/${ownList.id}/items/${otherItem.id}") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            setBody(mapOf("name" to "hacked"))
+        }
+        assertEquals(HttpStatusCode.NotFound, patchResponse.status)
+
+        val deleteViaOwnList = jsonClient.delete("/lists/${ownList.id}/items/${otherItem.id}") {
+            header("Authorization", "Bearer $testToken")
+        }
+        assertEquals(HttpStatusCode.NotFound, deleteViaOwnList.status)
+
+        val deleteViaTheirList = jsonClient.delete("/lists/${otherList.id}/items/${otherItem.id}") {
+            header("Authorization", "Bearer $testToken")
+        }
+        assertEquals(HttpStatusCode.Forbidden, deleteViaTheirList.status)
+
+        val untouched = itemRepo.getById(UUID.fromString(otherList.id), UUID.fromString(otherItem.id))
+        assertNotNull(untouched)
+        assertEquals("their milk", untouched.name)
+    }
+
+    @Test
+    fun `malformed list ID returns 400 with JSON error`() = testApplication {
+        setupTestApplication()
+
+        val response = jsonClient.get("/lists/not-a-uuid") {
+            header("Authorization", "Bearer $testToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val error: Map<String, String> = response.body()
+        assertEquals("Invalid listId", error["error"])
+
+        val itemResponse = jsonClient.delete("/lists/${UUID.randomUUID()}/items/not-a-uuid") {
+            header("Authorization", "Bearer $testToken")
+        }
+        // Ownership is checked before the item ID is parsed
+        assertEquals(HttpStatusCode.Forbidden, itemResponse.status)
+    }
+
+    @Test
+    fun `unknown list returns 404 with JSON error`() = testApplication {
+        setupTestApplication()
+
+        val response = jsonClient.get("/lists/${UUID.randomUUID()}") {
+            header("Authorization", "Bearer $testToken")
+        }
+        assertEquals(HttpStatusCode.NotFound, response.status)
+        val error: Map<String, String> = response.body()
+        assertEquals("List not found", error["error"])
+    }
+
+    @Test
+    fun `invalid item body returns 400 with JSON error`() = testApplication {
+        setupTestApplication()
+
+        val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+        val response = jsonClient.post("/lists/${list.id}/items") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            setBody("""{"quantity": 1}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val error: Map<String, String> = response.body()
+        assertNotNull(error["error"])
+    }
+
+    @Test
+    fun `blank item name on update returns 400 with service message`() = testApplication {
+        setupTestApplication()
+
+        val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+        val item = itemRepo.create(UUID.randomUUID(), UUID.fromString(list.id), "milk", 1, false)
+        val response = jsonClient.patch("/lists/${list.id}/items/${item.id}") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            setBody(mapOf("name" to " "))
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val error: Map<String, String> = response.body()
+        assertEquals("Name cannot be blank", error["error"])
     }
 }

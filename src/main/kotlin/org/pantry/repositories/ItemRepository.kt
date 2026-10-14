@@ -8,40 +8,37 @@ import org.pantry.postgres.tables.ItemTable
 import org.pantry.mappers.toItem
 import java.util.UUID
 
+// Every item lookup and mutation is scoped by listId, so callers that have
+// verified list ownership can't reach items in someone else's list.
 class ItemRepository {
-    fun getAll(id: UUID): List<Item> = transaction {
-        ItemTable
-            .selectAll()
-            .where { ItemTable.listId eq id }
+    fun getByListId(listId: UUID): List<Item> = transaction {
+        ItemTable.selectAll()
+            .where { ItemTable.listId eq listId }
+            .orderBy(ItemTable.createdAt to SortOrder.ASC, ItemTable.id to SortOrder.ASC)
             .map { it.toItem() }
     }
 
-    fun getById(id: UUID): Item? = transaction {
+    fun getById(listId: UUID, id: UUID): Item? = transaction {
         ItemTable.selectAll()
-            .where { ItemTable.id eq id }
+            .where { (ItemTable.listId eq listId) and (ItemTable.id eq id) }
             .map { it.toItem() }
             .singleOrNull()
     }
 
-    fun getByListId(listId: UUID): List<Item> = transaction {
-        ItemTable.selectAll().where { ItemTable.listId eq listId }
-            .map { it.toItem() }
-    }
-
-    fun create(newId: UUID,listId: String, name: String, quantity: Int, initBool : Boolean): Item = transaction {
+    fun create(newId: UUID, listId: UUID, name: String, quantity: Int, initBool : Boolean): Item = transaction {
         ItemTable.insert {
             it[id] = newId
             it[ItemTable.name] = name
             it[ItemTable.quantity] = quantity
             it[ItemTable.isChecked] = initBool
             it[ItemTable.isFavorite] = initBool
-            it[ItemTable.listId] = UUID.fromString(listId)
+            it[ItemTable.listId] = listId
         }
         Item(newId.toString(), name, quantity, initBool, initBool)
     }
 
-    fun update(id: UUID, name: String, quantity: Int, isChecked: Boolean, isFavorite: Boolean): Boolean = transaction {
-        ItemTable.update({ ItemTable.id eq id }) {
+    fun update(listId: UUID, id: UUID, name: String, quantity: Int, isChecked: Boolean, isFavorite: Boolean): Boolean = transaction {
+        ItemTable.update({ (ItemTable.listId eq listId) and (ItemTable.id eq id) }) {
             it[ItemTable.name] = name
             it[ItemTable.quantity] = quantity
             it[ItemTable.isChecked] = isChecked
@@ -49,7 +46,7 @@ class ItemRepository {
         } > 0
     }
 
-    fun delete(id: UUID): Boolean = transaction {
-        ItemTable.deleteWhere { ItemTable.id eq id }  > 0
+    fun delete(listId: UUID, id: UUID): Boolean = transaction {
+        ItemTable.deleteWhere { (ItemTable.listId eq listId) and (ItemTable.id eq id) } > 0
     }
 }

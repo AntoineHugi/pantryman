@@ -8,28 +8,42 @@ import io.ktor.server.testing.testApplication
 import io.ktor.server.testing.ApplicationTestBuilder
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import io.ktor.serialization.kotlinx.json.*
-import org.junit.jupiter.api.assertNotNull
+import io.mockk.coEvery
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.Runs
 import org.koin.core.component.inject
 import org.koin.dsl.module
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.koin.test.KoinTest
 import org.koin.test.junit5.KoinTestExtension
 import org.junit.jupiter.api.extension.RegisterExtension
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.config.MapApplicationConfig
 import org.junit.jupiter.api.BeforeEach
 import com.auth0.jwt.JWT
+import java.util.UUID
 
 import org.pantry.models.SignupRequest
+import org.pantry.models.SignupResponse
 import org.pantry.models.LoginRequest
 import org.pantry.models.AuthResponse
 import org.pantry.repositories.UserRepository
 import org.pantry.services.AuthService
+import org.pantry.services.EmailService
 import org.pantry.postgres.tables.UserTable
 
 class RoutingAuthApiIT : KoinTest {
+
+    private val emailService = mockk<EmailService>().also {
+        coEvery { it.sendVerificationEmail(any(), any()) } just Runs
+    }
 
     @JvmField
     @RegisterExtension
@@ -40,6 +54,7 @@ class RoutingAuthApiIT : KoinTest {
                 single {
                     AuthService(
                         get(),
+                        emailService,
                         "test-secret-key-for-testing-only",
                         "test-issuer",
                         "test-audience"
@@ -58,58 +73,73 @@ class RoutingAuthApiIT : KoinTest {
         )
         transaction {
             SchemaUtils.create(UserTable)
+            UserTable.deleteAll()
         }
     }
 
     private fun ApplicationTestBuilder.setupTestApplication() {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to "test-secret-key-for-testing-only",
+                "jwt.issuer" to "test-issuer",
+                "jwt.audience" to "test-audience",
+                "resend.frontendBaseUrl" to "http://frontend.test"
+            )
+        }
         application {
             install(ContentNegotiation) {
                 json()
             }
+            configureStatusPages()
+            configureSecurity()
+            configureRateLimiting()
             authAPI()
         }
     }
 
-    @Test
-    fun `POST signup returns 201 and creates user with valid credentials`() = testApplication {
-        setupTestApplication()
-
-        val signupRequest = SignupRequest(
-            email = "test@example.com",
-            password = "password123"
-        )
-
-        val response = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
+    // The default test client has no JSON serializer, so request bodies need this one.
+    private val ApplicationTestBuilder.jsonClient
+        get() = createClient {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) { json() }
         }
 
-        assertEquals(HttpStatusCode.Created, response.status)
-        val authResponse: AuthResponse = response.body()
-        assertNotNull(authResponse)
-        assertEquals(signupRequest.email, authResponse.email)
-        assertNotNull(authResponse.token)
-        assertNotNull(authResponse.userId)
+    private suspend fun ApplicationTestBuilder.signup(email: String, password: String = "password123") =
+        jsonClient.post("/auth/signup") {
+            contentType(ContentType.Application.Json)
+            setBody(SignupRequest(email, password))
+        }
 
-        // Verify user was created in database
-        val savedUser = userRepo.getByEmail(signupRequest.email)
-        assertNotNull(savedUser)
-        assertEquals(signupRequest.email, savedUser?.email)
+    private suspend fun ApplicationTestBuilder.login(email: String, password: String = "password123") =
+        jsonClient.post("/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(email, password))
+        }
+
+    private fun markVerified(email: String) {
+        val user = checkNotNull(userRepo.getByEmail(email))
+        userRepo.markAsVerified(UUID.fromString(user.id))
+    }
+
+    @Test
+    fun `POST signup returns 201 and creates unverified user`() = testApplication {
+        setupTestApplication()
+
+        val response = signup("test@example.com")
+
+        assertEquals(HttpStatusCode.Created, response.status)
+        val body: SignupResponse = response.body()
+        assertEquals("test@example.com", body.email)
+
+        val savedUser = assertNotNull(userRepo.getByEmail("test@example.com"))
+        assertEquals(false, savedUser.isVerified)
+        assertNotNull(savedUser.verificationToken)
     }
 
     @Test
     fun `POST signup returns 400 with blank email`() = testApplication {
         setupTestApplication()
 
-        val signupRequest = SignupRequest(
-            email = "",
-            password = "password123"
-        )
-
-        val response = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
+        val response = signup("")
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
         val errorResponse: Map<String, String> = response.body()
@@ -120,15 +150,7 @@ class RoutingAuthApiIT : KoinTest {
     fun `POST signup returns 400 with invalid email`() = testApplication {
         setupTestApplication()
 
-        val signupRequest = SignupRequest(
-            email = "notanemail",
-            password = "password123"
-        )
-
-        val response = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
+        val response = signup("notanemail")
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
         val errorResponse: Map<String, String> = response.body()
@@ -139,15 +161,7 @@ class RoutingAuthApiIT : KoinTest {
     fun `POST signup returns 400 with short password`() = testApplication {
         setupTestApplication()
 
-        val signupRequest = SignupRequest(
-            email = "test@example.com",
-            password = "short"
-        )
-
-        val response = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
+        val response = signup("test@example.com", "short")
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
         val errorResponse: Map<String, String> = response.body()
@@ -155,26 +169,12 @@ class RoutingAuthApiIT : KoinTest {
     }
 
     @Test
-    fun `POST signup returns 400 when user already exists`() = testApplication {
+    fun `POST signup returns 400 when user already exists, regardless of email case`() = testApplication {
         setupTestApplication()
 
-        val signupRequest = SignupRequest(
-            email = "duplicate@example.com",
-            password = "password123"
-        )
+        assertEquals(HttpStatusCode.Created, signup("duplicate@example.com").status)
 
-        // First signup should succeed
-        val firstResponse = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
-        assertEquals(HttpStatusCode.Created, firstResponse.status)
-
-        // Second signup with same email should fail
-        val secondResponse = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
+        val secondResponse = signup("Duplicate@Example.com")
 
         assertEquals(HttpStatusCode.BadRequest, secondResponse.status)
         val errorResponse: Map<String, String> = secondResponse.body()
@@ -182,23 +182,40 @@ class RoutingAuthApiIT : KoinTest {
     }
 
     @Test
-    fun `POST signup returns valid JWT token`() = testApplication {
+    fun `GET verify marks user verified and redirects to login`() = testApplication {
         setupTestApplication()
+        signup("verify@example.com")
+        val token = checkNotNull(userRepo.getByEmail("verify@example.com")?.verificationToken)
 
-        val signupRequest = SignupRequest(
-            email = "test@example.com",
-            password = "password123"
-        )
+        val noRedirectClient = createClient { followRedirects = false }
+        val response = noRedirectClient.get("/auth/verify?token=$token")
 
-        val response = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
+        assertEquals(HttpStatusCode.Found, response.status)
+        assertEquals("http://frontend.test/login?verified=true", response.headers[HttpHeaders.Location])
+        assertEquals(true, userRepo.getByEmail("verify@example.com")?.isVerified)
+    }
 
-        assertEquals(HttpStatusCode.Created, response.status)
+    @Test
+    fun `POST login returns 403 when email not verified`() = testApplication {
+        setupTestApplication()
+        signup("unverified@example.com")
+
+        val response = login("unverified@example.com")
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    @Test
+    fun `POST login returns 200 and valid JWT for verified user`() = testApplication {
+        setupTestApplication()
+        signup("login@example.com")
+        markVerified("login@example.com")
+
+        val response = login("login@example.com")
+
+        assertEquals(HttpStatusCode.OK, response.status)
         val authResponse: AuthResponse = response.body()
-
-        // Decode and verify JWT token
+        assertEquals("login@example.com", authResponse.email)
         val decodedJWT = JWT.decode(authResponse.token)
         assertEquals(authResponse.userId, decodedJWT.getClaim("userId").asString())
         assertEquals("test-issuer", decodedJWT.issuer)
@@ -207,51 +224,21 @@ class RoutingAuthApiIT : KoinTest {
     }
 
     @Test
-    fun `POST login returns 200 with valid credentials`() = testApplication {
+    fun `POST login accepts email with different case`() = testApplication {
         setupTestApplication()
+        signup("Mixed@Example.com")
+        markVerified("mixed@example.com")
 
-        // First create a user
-        val signupRequest = SignupRequest(
-            email = "login@example.com",
-            password = "password123"
-        )
-        client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
-
-        // Then try to login
-        val loginRequest = LoginRequest(
-            email = "login@example.com",
-            password = "password123"
-        )
-
-        val response = client.post("/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(loginRequest)
-        }
+        val response = login("MIXED@example.COM")
 
         assertEquals(HttpStatusCode.OK, response.status)
-        val authResponse: AuthResponse = response.body()
-        assertNotNull(authResponse)
-        assertEquals(loginRequest.email, authResponse.email)
-        assertNotNull(authResponse.token)
-        assertNotNull(authResponse.userId)
     }
 
     @Test
     fun `POST login returns 401 with non-existent email`() = testApplication {
         setupTestApplication()
 
-        val loginRequest = LoginRequest(
-            email = "notfound@example.com",
-            password = "password123"
-        )
-
-        val response = client.post("/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(loginRequest)
-        }
+        val response = login("notfound@example.com")
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
         val errorResponse: Map<String, String> = response.body()
@@ -261,27 +248,10 @@ class RoutingAuthApiIT : KoinTest {
     @Test
     fun `POST login returns 401 with incorrect password`() = testApplication {
         setupTestApplication()
+        signup("test@example.com", "correctpassword")
+        markVerified("test@example.com")
 
-        // First create a user
-        val signupRequest = SignupRequest(
-            email = "test@example.com",
-            password = "correctpassword"
-        )
-        client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
-
-        // Try to login with wrong password
-        val loginRequest = LoginRequest(
-            email = "test@example.com",
-            password = "wrongpassword"
-        )
-
-        val response = client.post("/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(loginRequest)
-        }
+        val response = login("test@example.com", "wrongpassword")
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
         val errorResponse: Map<String, String> = response.body()
@@ -289,68 +259,12 @@ class RoutingAuthApiIT : KoinTest {
     }
 
     @Test
-    fun `POST login returns valid JWT token`() = testApplication {
+    fun `POST login is rate limited`() = testApplication {
         setupTestApplication()
 
-        // First create a user
-        val signupRequest = SignupRequest(
-            email = "test@example.com",
-            password = "password123"
-        )
-        val signupResponse = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
-        val signupAuth: AuthResponse = signupResponse.body()
+        val statuses = (1..11).map { login("nobody@example.com").status }
 
-        // Then login
-        val loginRequest = LoginRequest(
-            email = "test@example.com",
-            password = "password123"
-        )
-
-        val response = client.post("/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(loginRequest)
-        }
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        val authResponse: AuthResponse = response.body()
-
-        // Verify JWT token
-        val decodedJWT = JWT.decode(authResponse.token)
-        assertEquals(signupAuth.userId, decodedJWT.getClaim("userId").asString())
-        assertEquals("test-issuer", decodedJWT.issuer)
-        assertEquals("test-audience", decodedJWT.audience[0])
-    }
-
-    @Test
-    fun `login and signup return same userId for same user`() = testApplication {
-        setupTestApplication()
-
-        // Signup
-        val signupRequest = SignupRequest(
-            email = "test@example.com",
-            password = "password123"
-        )
-        val signupResponse = client.post("/auth/signup") {
-            contentType(ContentType.Application.Json)
-            setBody(signupRequest)
-        }
-        val signupAuth: AuthResponse = signupResponse.body()
-
-        // Login
-        val loginRequest = LoginRequest(
-            email = "test@example.com",
-            password = "password123"
-        )
-        val loginResponse = client.post("/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(loginRequest)
-        }
-        val loginAuth: AuthResponse = loginResponse.body()
-
-        // Should return same userId
-        assertEquals(signupAuth.userId, loginAuth.userId)
+        assertTrue(statuses.take(10).all { it == HttpStatusCode.Unauthorized })
+        assertEquals(HttpStatusCode.TooManyRequests, statuses.last())
     }
 }

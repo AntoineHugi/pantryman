@@ -3,6 +3,7 @@ package org.pantry.plugins
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
+import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.request.receive
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -10,6 +11,7 @@ import org.koin.ktor.ext.inject
 import org.pantry.models.CreateGroceryListRequest
 import org.pantry.models.CreateItemRequest
 import org.pantry.models.ItemUpdateRequest
+import org.pantry.models.UpdateGroceryListRequest
 import org.pantry.services.GroceryListService
 import org.pantry.services.ItemService
 import java.util.UUID
@@ -18,135 +20,75 @@ fun Application.groceriesApi() {
     val groceryListService by inject <GroceryListService>()
     val itemService by inject <ItemService>()
 
+    // Item routes act on a list the caller must own; returns the list ID.
+    fun ApplicationCall.requireOwnedListId(): UUID {
+        val listId = uuidParameter("listId")
+        groceryListService.getById(listId, userId) ?: throw ForbiddenException("List not found or unauthorized")
+        return listId
+    }
+
     routing {
         authenticate("auth-jwt") {
             route("/lists") {
                 post {
-                    val userId = call.userId
                     val request = call.receive<CreateGroceryListRequest>()
-                    val created = groceryListService.create(request.name, userId)
+                    val created = groceryListService.create(request.name, call.userId)
                     call.respond(HttpStatusCode.Created, created)
                 }
                 get {
-                    val userId = call.userId
-                    val lists = groceryListService.getAll(userId)
-                    call.respond(lists)
+                    call.respond(groceryListService.getAll(call.userId))
                 }
                 route("/{listId}") {
                     get {
-                        val userId = call.userId
-                        val id = call.parameters["listId"]?.let { UUID.fromString(it) }
-                        if (id == null) {
-                            call.respond(HttpStatusCode.BadRequest, "Invalid ID")
-                            return@get
-                        }
-                        val list = groceryListService.getById(id, userId)
-                        if (list == null) {
-                            call.respond(HttpStatusCode.NotFound, "List not found")
-                        } else {
-                            call.respond(list)
-                        }
+                        val list = groceryListService.getById(call.uuidParameter("listId"), call.userId)
+                            ?: throw NotFoundException("List not found")
+                        call.respond(list)
                     }
                     patch {
-                        val userId = call.userId
-                        val id = call.parameters["listId"]?.let { UUID.fromString(it) }
-                        if (id == null) {
-                            call.respond(HttpStatusCode.BadRequest, "Invalid ID")
-                            return@patch
+                        val id = call.uuidParameter("listId")
+                        val request = call.receive<UpdateGroceryListRequest>()
+                        if (!groceryListService.update(id, request.name, call.userId)) {
+                            throw NotFoundException("List not found")
                         }
-                        val body = call.receive<Map<String, String>>()
-                        val updated = groceryListService.update(id, body["name"] ?: "", userId)
-                        if (updated)
-                            call.respond(HttpStatusCode.OK)
-                        else
-                            call.respond(HttpStatusCode.NotFound)
+                        call.respond(HttpStatusCode.OK)
                     }
                     delete {
-                        val userId = call.userId
-                        val id = call.parameters["listId"]?.let { UUID.fromString(it) }
-                        if (id == null) {
-                            call.respond(HttpStatusCode.BadRequest, "Invalid ID")
-                            return@delete
+                        if (!groceryListService.delete(call.uuidParameter("listId"), call.userId)) {
+                            throw NotFoundException("List not found")
                         }
-                        val deleted = groceryListService.delete(id, userId)
-                        if (deleted) call.respond(HttpStatusCode.NoContent)
-                        else call.respond(HttpStatusCode.NotFound)
+                        call.respond(HttpStatusCode.NoContent)
                     }
                     route("/items") {
                         post {
-                            val userId = call.userId
+                            val listId = call.requireOwnedListId()
                             val request = call.receive<CreateItemRequest>()
-
-                            val list = groceryListService.getById(UUID.fromString(request.listId), userId)
-                            if (list == null) {
-                                call.respond(HttpStatusCode.Forbidden, "List not found or unauthorized")
-                                return@post
-                            }
-
                             val item = itemService.create(
-                                listId = request.listId,
+                                listId = listId,
                                 name = request.name,
                                 quantity = request.quantity
                             )
                             call.respond(HttpStatusCode.Created, item)
                         }
                         get {
-                            val userId = call.userId
-                            val id = call.parameters["listId"]?.let { UUID.fromString(it) }
-                            if (id == null) {
-                                call.respond(HttpStatusCode.BadRequest, "Invalid ID")
-                                return@get
-                            }
-
-                            val list = groceryListService.getById(id, userId)
-                            if (list == null) {
-                                call.respond(HttpStatusCode.Forbidden, "List not found or unauthorized")
-                                return@get
-                            }
-
-                            val itemList = itemService.getAll(id)
-                            call.respond(itemList)
+                            val listId = call.requireOwnedListId()
+                            call.respond(itemService.getAll(listId))
                         }
                         route("/{itemId}") {
                             delete {
-                                val userId = call.userId
-                                val listId = call.parameters["listId"]?.let { UUID.fromString(it) }
-                                val itemId = UUID.fromString(call.parameters["itemId"])
-
-                                if (listId != null) {
-                                    val list = groceryListService.getById(listId, userId)
-                                    if (list == null) {
-                                        call.respond(HttpStatusCode.Forbidden, "Unauthorized")
-                                        return@delete
-                                    }
+                                val listId = call.requireOwnedListId()
+                                if (!itemService.delete(listId, call.uuidParameter("itemId"))) {
+                                    throw NotFoundException("Item not found")
                                 }
-
-                                val deleted = itemService.delete(itemId)
-                                if (deleted) call.respond(HttpStatusCode.NoContent)
-                                else call.respond(HttpStatusCode.NotFound, "Item not found")
+                                call.respond(HttpStatusCode.NoContent)
                             }
                             patch {
-                                val userId = call.userId
-                                val listId = call.parameters["listId"]?.let { UUID.fromString(it) }
-                                val itemId = call.parameters["itemId"]?.let(UUID::fromString)
-                                    ?: return@patch call.respond(HttpStatusCode.BadRequest, "Invalid ID")
-
-                                if (listId != null) {
-                                    val list = groceryListService.getById(listId, userId)
-                                    if (list == null) {
-                                        call.respond(HttpStatusCode.Forbidden, "Unauthorized")
-                                        return@patch
-                                    }
-                                }
-
+                                val listId = call.requireOwnedListId()
+                                val itemId = call.uuidParameter("itemId")
                                 val request = call.receive<ItemUpdateRequest>()
-                                try {
-                                    val updated = itemService.update(itemId, request)
-                                    if (updated) call.respond(HttpStatusCode.OK, "Item updated")
-                                    else call.respond(HttpStatusCode.NotFound, "Item not found")
-                                } catch (e: IllegalArgumentException) {
-                                    call.respond(HttpStatusCode.BadRequest, e.message ?: "Invalid data")
+                                if (!itemService.update(listId, itemId, request)) {
+                                    throw NotFoundException("Item not found")
                                 }
+                                call.respond(HttpStatusCode.OK, mapOf("message" to "Item updated"))
                             }
                         }
                     }

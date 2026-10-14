@@ -1,6 +1,7 @@
 package org.pantry.services
 
 import io.mockk.*
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
@@ -13,173 +14,171 @@ import java.util.UUID
 class AuthServiceTest {
 
     private val repo = mockk<UserRepository>()
+    private val emailService = mockk<EmailService>()
     private val jwtSecret = "test-secret"
     private val jwtIssuer = "test-issuer"
     private val jwtAudience = "test-audience"
-    private val service = AuthService(repo, jwtSecret, jwtIssuer, jwtAudience)
+    private val service = AuthService(repo, emailService, jwtSecret, jwtIssuer, jwtAudience)
 
     @AfterEach
     fun tearDown() {
-        clearMocks(repo)
+        clearMocks(repo, emailService)
+    }
+
+    private fun stubSuccessfulCreate() {
+        every { repo.create(any(), any(), any(), any()) } answers {
+            User(firstArg<UUID>().toString(), secondArg(), thirdArg(), verificationToken = arg<UUID>(3).toString())
+        }
+        coEvery { emailService.sendVerificationEmail(any(), any()) } just Runs
     }
 
     @Test
-    fun `signup should create user and return auth response`() {
+    fun `signup should create user and send verification email`() = runBlocking {
         val email = "test@example.com"
-        val password = "password123"
-
         every { repo.getByEmail(email) } returns null
-        every { repo.create(any(), email, any()) } answers {
-            val id = firstArg<UUID>()
-            val passwordHash = thirdArg<String>()
-            User(id.toString(), email, passwordHash)
+        stubSuccessfulCreate()
+
+        val result = service.signup(email, "password123")
+
+        assertEquals(email, result.email)
+        verify(exactly = 1) { repo.create(any(), email, any(), any()) }
+        coVerify(exactly = 1) { emailService.sendVerificationEmail(email, any()) }
+    }
+
+    @Test
+    fun `signup should normalize email to trimmed lowercase`() = runBlocking {
+        every { repo.getByEmail("test@example.com") } returns null
+        stubSuccessfulCreate()
+
+        val result = service.signup("  Test@Example.COM ", "password123")
+
+        assertEquals("test@example.com", result.email)
+        verify(exactly = 1) { repo.create(any(), "test@example.com", any(), any()) }
+    }
+
+    @Test
+    fun `signup should delete user and rethrow if verification email fails`() {
+        val email = "test@example.com"
+        every { repo.getByEmail(email) } returns null
+        every { repo.create(any(), any(), any(), any()) } answers {
+            User(firstArg<UUID>().toString(), secondArg(), thirdArg())
+        }
+        every { repo.delete(any()) } just Runs
+        coEvery { emailService.sendVerificationEmail(any(), any()) } throws RuntimeException("Resend down")
+
+        assertThrows<RuntimeException> {
+            runBlocking { service.signup(email, "password123") }
         }
 
-        val result = service.signup(email, password)
-
-        assertNotNull(result)
-        assertEquals(email, result.email)
-        assertNotNull(result.token)
-
-        verify(exactly = 1) { repo.getByEmail(email) }
-        verify(exactly = 1) { repo.create(any(), email, any()) }
+        val createdId = slot<UUID>()
+        verify(exactly = 1) { repo.create(capture(createdId), email, any(), any()) }
+        verify(exactly = 1) { repo.delete(createdId.captured) }
     }
 
     @Test
     fun `signup should throw if email is blank`() {
         val exception = assertThrows<IllegalArgumentException> {
-            service.signup("", "password123")
+            runBlocking { service.signup("", "password123") }
         }
         assertEquals("Invalid email", exception.message)
-        verify(exactly = 0) { repo.getByEmail(any()) }
-        verify(exactly = 0) { repo.create(any(), any(), any()) }
+        verify(exactly = 0) { repo.create(any(), any(), any(), any()) }
     }
 
     @Test
     fun `signup should throw if email has no @ symbol`() {
         val exception = assertThrows<IllegalArgumentException> {
-            service.signup("notanemail", "password123")
+            runBlocking { service.signup("notanemail", "password123") }
         }
         assertEquals("Invalid email", exception.message)
-        verify(exactly = 0) { repo.getByEmail(any()) }
-        verify(exactly = 0) { repo.create(any(), any(), any()) }
+        verify(exactly = 0) { repo.create(any(), any(), any(), any()) }
     }
 
     @Test
     fun `signup should throw if password is less than 8 characters`() {
         val exception = assertThrows<IllegalArgumentException> {
-            service.signup("test@example.com", "pass")
+            runBlocking { service.signup("test@example.com", "pass") }
         }
         assertEquals("Password must be at least 8 characters", exception.message)
-        verify(exactly = 0) { repo.getByEmail(any()) }
-        verify(exactly = 0) { repo.create(any(), any(), any()) }
+        verify(exactly = 0) { repo.create(any(), any(), any(), any()) }
     }
 
     @Test
     fun `signup should throw if user already exists`() {
         val email = "existing@example.com"
-        val existingUser = User(UUID.randomUUID().toString(), email, "hashedpassword")
-
-        every { repo.getByEmail(email) } returns existingUser
+        every { repo.getByEmail(email) } returns User(UUID.randomUUID().toString(), email, "hashedpassword")
 
         val exception = assertThrows<IllegalArgumentException> {
-            service.signup(email, "password123")
+            runBlocking { service.signup(email, "password123") }
         }
 
         assertEquals("Registration Failed", exception.message)
-        verify(exactly = 1) { repo.getByEmail(email) }
-        verify(exactly = 0) { repo.create(any(), any(), any()) }
+        verify(exactly = 0) { repo.create(any(), any(), any(), any()) }
     }
 
     @Test
-    fun `login should return auth response for valid credentials`() {
-        val email = "test@example.com"
+    fun `signup should hash password before storing`() = runBlocking {
         val password = "password123"
-        val passwordHash = BCrypt.hashpw(password, BCrypt.gensalt())
-        val userId = UUID.randomUUID()
-        val user = User(userId.toString(), email, passwordHash)
+        every { repo.getByEmail(any()) } returns null
+        stubSuccessfulCreate()
 
-        every { repo.getByEmail(email) } returns user
+        service.signup("test@example.com", password)
 
-        val result = service.login(email, password)
-
-        assertNotNull(result)
-        assertEquals(email, result?.email)
-        assertEquals(userId.toString(), result?.userId)
-        assertNotNull(result?.token)
-
-        verify(exactly = 1) { repo.getByEmail(email) }
-    }
-
-    @Test
-    fun `login should return null if user not found`() {
-        val email = "notfound@example.com"
-
-        every { repo.getByEmail(email) } returns null
-
-        val result = service.login(email, "password123")
-
-        assertNull(result)
-        verify(exactly = 1) { repo.getByEmail(email) }
-    }
-
-    @Test
-    fun `login should return null if password is incorrect`() {
-        val email = "test@example.com"
-        val correctPassword = "password123"
-        val wrongPassword = "wrongpassword"
-        val passwordHash = BCrypt.hashpw(correctPassword, BCrypt.gensalt())
-        val userId = UUID.randomUUID()
-        val user = User(userId.toString(), email, passwordHash)
-
-        every { repo.getByEmail(email) } returns user
-
-        val result = service.login(email, wrongPassword)
-
-        assertNull(result)
-        verify(exactly = 1) { repo.getByEmail(email) }
-    }
-
-    @Test
-    fun `generated token should contain userId claim`() {
-        val email = "test@example.com"
-        val password = "password123"
-
-        every { repo.getByEmail(email) } returns null
-        every { repo.create(any(), email, any()) } answers {
-            val id = firstArg<UUID>()
-            val passwordHash = thirdArg<String>()
-            User(id.toString(), email, passwordHash)
+        verify(exactly = 1) {
+            repo.create(any(), any(), match { it.startsWith("$2") && it != password && BCrypt.checkpw(password, it) }, any())
         }
+    }
 
-        val result = service.signup(email, password)
+    @Test
+    fun `login should return auth response with valid token for verified user`() {
+        val email = "test@example.com"
+        val password = "password123"
+        val userId = UUID.randomUUID()
+        every { repo.getByEmail(email) } returns
+            User(userId.toString(), email, BCrypt.hashpw(password, BCrypt.gensalt()), isVerified = true)
 
+        val result = checkNotNull(service.login(email, password))
+
+        assertEquals(email, result.email)
+        assertEquals(userId.toString(), result.userId)
         val decodedJWT = com.auth0.jwt.JWT.decode(result.token)
-        assertEquals(result.userId, decodedJWT.getClaim("userId").asString())
+        assertEquals(userId.toString(), decodedJWT.getClaim("userId").asString())
         assertEquals(jwtIssuer, decodedJWT.issuer)
         assertEquals(jwtAudience, decodedJWT.audience[0])
         assertNotNull(decodedJWT.expiresAt)
     }
 
     @Test
-    fun `signup should hash password before storing`() {
+    fun `login should look up email case-insensitively`() {
+        val password = "password123"
+        every { repo.getByEmail("test@example.com") } returns
+            User(UUID.randomUUID().toString(), "test@example.com", BCrypt.hashpw(password, BCrypt.gensalt()), isVerified = true)
+
+        assertNotNull(service.login(" TEST@example.com", password))
+    }
+
+    @Test
+    fun `login should throw if email not verified`() {
         val email = "test@example.com"
         val password = "password123"
+        every { repo.getByEmail(email) } returns
+            User(UUID.randomUUID().toString(), email, BCrypt.hashpw(password, BCrypt.gensalt()), isVerified = false)
 
-        every { repo.getByEmail(email) } returns null
-        every { repo.create(any(), email, any()) } answers {
-            val id = firstArg<UUID>()
-            val passwordHash = thirdArg<String>()
+        assertThrows<EmailNotVerifiedException> { service.login(email, password) }
+    }
 
-            // Verify the password was hashed (BCrypt hashes start with $2a$ or $2b$)
-            assertTrue(passwordHash.startsWith("$2"))
-            assertNotEquals(password, passwordHash)
+    @Test
+    fun `login should return null if user not found`() {
+        every { repo.getByEmail(any()) } returns null
 
-            User(id.toString(), email, passwordHash)
-        }
+        assertNull(service.login("notfound@example.com", "password123"))
+    }
 
-        service.signup(email, password)
+    @Test
+    fun `login should return null if password is incorrect`() {
+        val email = "test@example.com"
+        every { repo.getByEmail(email) } returns
+            User(UUID.randomUUID().toString(), email, BCrypt.hashpw("password123", BCrypt.gensalt()), isVerified = true)
 
-        verify(exactly = 1) { repo.create(any(), email, match { it.startsWith("$2") }) }
+        assertNull(service.login(email, "wrongpassword"))
     }
 }

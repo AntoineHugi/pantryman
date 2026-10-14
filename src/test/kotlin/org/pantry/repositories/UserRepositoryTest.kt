@@ -53,7 +53,7 @@ class UserRepositoryTest {
         val email = "test@example.com"
         val passwordHash = "hashedpassword123"
 
-        val created = repo.create(userId, email, passwordHash)
+        val created = repo.create(userId, email, passwordHash, UUID.randomUUID())
 
         assertEquals(userId.toString(), created.id)
         assertEquals(email, created.email)
@@ -65,7 +65,7 @@ class UserRepositoryTest {
         val userId = UUID.randomUUID()
         val email = "test@example.com"
         val passwordHash = "hashedpassword123"
-        repo.create(userId, email, passwordHash)
+        repo.create(userId, email, passwordHash, UUID.randomUUID())
 
         val result = repo.getByEmail(email)
         assertTrue(result != null)
@@ -86,7 +86,7 @@ class UserRepositoryTest {
         val userId = UUID.randomUUID()
         val email = "test@example.com"
         val passwordHash = "hashedpassword123"
-        repo.create(userId, email, passwordHash)
+        repo.create(userId, email, passwordHash, UUID.randomUUID())
 
         val result = repo.getById(userId)
         assertTrue(result != null)
@@ -108,24 +108,22 @@ class UserRepositoryTest {
         val userId2 = UUID.randomUUID()
         val email = "duplicate@example.com"
 
-        repo.create(userId1, email, "password1")
+        repo.create(userId1, email, "password1", UUID.randomUUID())
         assertThrows<Exception> {
-            repo.create(userId2, email, "password2")
+            repo.create(userId2, email, "password2", UUID.randomUUID())
         }
     }
 
 
     @Test
-    fun `7 - getByEmail is case sensitive`() {
+    fun `7 - getByEmail is case insensitive`() {
         val userId = UUID.randomUUID()
-        val email = "Test@Example.com"
-        repo.create(userId, email, "password")
+        repo.create(userId, "Test@Example.com", "password", UUID.randomUUID())
 
         val foundExact = repo.getByEmail("Test@Example.com")
         val foundLower = repo.getByEmail("test@example.com")
 
-        assertTrue(foundExact != null)
-        assertTrue(foundLower == null)
-
+        assertEquals(userId.toString(), foundExact?.id)
+        assertEquals(userId.toString(), foundLower?.id)
     }
 }

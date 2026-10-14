@@ -2,6 +2,8 @@ package org.pantry.postgres.tables
 
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.ReferenceOption
+import org.jetbrains.exposed.sql.javatime.CurrentTimestamp
+import org.jetbrains.exposed.sql.javatime.timestamp
 
 object ItemTable : Table("item_list") {
     val id = uuid("id").autoGenerate().uniqueIndex()
@@ -9,6 +11,7 @@ object ItemTable : Table("item_list") {
     val quantity = integer("quantity").default(1)
     val isChecked = bool("is_checked").default(false)
     val isFavorite = bool("is_favorite").default(false)
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
 
     val listId = uuid("list_id").references(GroceryListTable.id, onDelete = ReferenceOption.CASCADE)
 
