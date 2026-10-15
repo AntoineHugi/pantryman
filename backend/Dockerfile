@@ -1,8 +1,9 @@
-FROM gradle:8.8.0-jdk17-alpine AS build
-USER root
+# eclipse-temurin images are multi-arch (amd64 + arm64), so this also builds on Apple Silicon
+FROM eclipse-temurin:17-jdk AS build
 WORKDIR /app
 COPY . .
-RUN gradle clean installDist --no-daemon
+# Use the wrapper so the Gradle version matches local builds and CI
+RUN ./gradlew clean installDist --no-daemon
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.testcontainers.containers.PostgreSQLContainer
 import org.pantry.postgres.tables.ItemTable
+import org.pantry.postgres.tables.UserTable
 import org.pantry.postgres.tables.GroceryListTable
 import java.util.UUID
 
@@ -39,8 +40,10 @@ class ItemRepositoryTest {
             password = postgres.password
         )
         transaction {
-            SchemaUtils.create(GroceryListTable, ItemTable)
+            SchemaUtils.create(UserTable, GroceryListTable, ItemTable)
         }
+        // Lists reference users, so the owner needs a real user row
+        createUser(testUserId)
     }
 
     @AfterEach
@@ -132,7 +135,7 @@ class ItemRepositoryTest {
         val ownListId = UUID.randomUUID()
         val otherListId = UUID.randomUUID()
         groceryRepo.create(ownListId, "Mine", testUserId)
-        groceryRepo.create(otherListId, "Theirs", UUID.randomUUID())
+        groceryRepo.create(otherListId, "Theirs", UUID.randomUUID().also { createUser(it) })
         val otherItemId = UUID.randomUUID()
         repo.create(otherItemId, otherListId, "Their milk", 1, false)
 
@@ -153,5 +156,9 @@ class ItemRepositoryTest {
         repo.update(listId, ids[2], "Eggs", 6, true, false)
 
         assertEquals(names, repo.getByListId(listId).map { it.name })
+    }
+
+    private fun createUser(id: UUID) {
+        UserRepository().create(id, "$id@example.com", "hash", UUID.randomUUID())
     }
 }

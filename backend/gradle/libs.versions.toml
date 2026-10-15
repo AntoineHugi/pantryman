@@ -13,7 +13,8 @@ h2 = "2.2.224"
 junit = "5.10.0"
 mockk = "1.14.5"
 kotlinx-serialization = "1.6.0"
-testcontainers = "1.20.1"
+# 1.21.4+ is needed for Docker Engine 29 (minimum API 1.44)
+testcontainers = "1.21.4"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }

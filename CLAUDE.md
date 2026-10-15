@@ -59,7 +59,7 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 ## Conventions and gotchas
 
 - **Authorization:** every route under `authenticate("auth-jwt")` gets the user from `call.userId` (the JWT claim) and never from the request body. Any query on a child resource must be scoped by its parent. For example, item queries always filter by `listId` as well as `itemId`, after the route has checked that the user owns the list. Add a test for cross-user access whenever you add an endpoint.
-- **Migrations:** never edit an applied migration; add a new `V<n+1>__...sql`. Update the matching Exposed table object at the same time. Tests build their schema from the Exposed objects (`SchemaUtils.create`), not from the migrations, so a mismatch passes the tests and then breaks in production.
+- **Migrations:** never edit an applied migration; add a new `V<n+1>__...sql`. Update the matching Exposed table object at the same time. Most tests build their schema from the Exposed objects (`SchemaUtils.create`), not from the migrations. `MigrationTest` is the exception: it runs Flyway and checks that the columns and nullability match. Keep it passing, and add new tables to its list.
 - **Ordering:** Postgres has no stable row order. Queries that return lists must `orderBy` (currently `createdAt`, then `id`).
 - **Emails** are stored trimmed and lowercase, and looked up case-insensitively.
 - **JSON:** the server ignores unknown keys, so older installed clients keep working when request fields are removed. Prefer additive API changes, because mobile clients will lag behind deploys.

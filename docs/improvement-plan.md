@@ -184,3 +184,12 @@ Behaviour changes: item `PATCH` now returns `{"message": "Item updated"}` (JSON)
 Verification: backend 63 tests pass (H2 API tests + unit tests, including new tests for malformed UUIDs, bad JSON bodies, unknown lists and service error messages). The 3 `*RepositoryTest` classes still need Docker and weren't run locally. They will run in CI. Web: `tsc -b`, `lint` (0 errors) and `build` pass.
 
 Not done in step 2: component library / Tailwind (§2.8). It's a UI-wide restyle and worth doing together with the mobile-first UX pass in step 3.
+
+### Docker and repository tests (2026-10-15)
+
+- **Docker image:** `gradle:8.8.0-jdk17-alpine` has no arm64 build, so the image didn't build on Apple Silicon. The build stage now uses `eclipse-temurin:17-jdk` + `./gradlew`, so it builds with the same Gradle version as local and CI. A new `.dockerignore` keeps `.env` and `build/` out of the build context.
+- **Testcontainers 1.20.1 → 1.21.4.** Docker Engine 29 rejects API versions below 1.44, and the old Testcontainers got a 400 from it.
+- **Repository tests ran for the first time and failed:** they created lists for users that didn't exist. Fixed.
+- **New `MigrationTest`** runs the real Flyway migrations on Postgres and checks that every Exposed column exists with the same nullability. It found that `item_list.quantity/is_checked/is_favorite/list_id` were nullable in the database (V3) but NOT NULL in Exposed. **`V8`** fixes this. It deletes items with no list (unreachable anyway) and fills NULLs with the defaults.
+- V7 and V8 are now verified against Postgres 15. All 86 backend tests pass locally.
+

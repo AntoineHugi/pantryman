@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.testcontainers.containers.PostgreSQLContainer
 import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.postgres.tables.ItemTable
+import org.pantry.postgres.tables.UserTable
 import java.util.UUID
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -38,8 +39,10 @@ class GroceryListRepositoryTest {
             password = postgres.password
         )
         transaction {
-            SchemaUtils.create(GroceryListTable, ItemTable)
+            SchemaUtils.create(UserTable, GroceryListTable, ItemTable)
         }
+        // Lists reference users, so the owner needs a real user row
+        createUser(testUserId)
     }
 
     @AfterEach
@@ -70,7 +73,7 @@ class GroceryListRepositoryTest {
         val list2 = repo.create(UUID.randomUUID(), "Groceries", testUserId)
 
         // Create a list for a different user (should not be returned)
-        val otherUserId = UUID.randomUUID()
+        val otherUserId = UUID.randomUUID().also { createUser(it) }
         repo.create(UUID.randomUUID(), "Other User's List", otherUserId)
 
         val result = repo.getAll(testUserId)
@@ -148,5 +151,9 @@ class GroceryListRepositoryTest {
         // List should still exist
         val stillExists = repo.getById(listId, testUserId)
         assertNotNull(stillExists)
+    }
+
+    private fun createUser(id: UUID) {
+        UserRepository().create(id, "$id@example.com", "hash", UUID.randomUUID())
     }
 }
