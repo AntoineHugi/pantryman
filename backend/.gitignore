@@ -48,3 +48,6 @@ bin/
 
 
 .env
+
+# Local env files with real credentials (e.g. .env.production)
+.env.*
