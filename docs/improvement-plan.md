@@ -82,7 +82,9 @@ Do this early — retrofitting after recipes means migrating twice. Near-real-ti
 
 ## 5. Hosting (status as of 2026-10-14)
 
-**Current state: the backend is down.** I no longer have access to the Koyeb account. `pantryman.koyeb.app` returns Koyeb's own 404 page, so no service exists there any more. The frontend at pantryman.de (Vercel) is still up, but every API call fails.
+> **Resolved 2026-10-15.** The backend was actually running on **Render** (`pantryman.onrender.com`), and the database is the **Neon** project `pantryman-db`. Nothing was lost. After the monorepo merge, Render's Root Directory was set to `backend` and the env vars were updated (new Neon password, `JWT_SECRET`). The site works again. `koyeb.yaml` was removed. The rest of this section is kept for history.
+
+**Original state (2026-10-14): the backend is down.** I no longer have access to the Koyeb account. `pantryman.koyeb.app` returns Koyeb's own 404 page, so no service exists there any more. The frontend at pantryman.de (Vercel) is still up, but every API call fails.
 
 **Database: location unknown, probably lost.** The production `DB_URL` was only ever set in Koyeb's dashboard. It isn't in the repos, the git history or the local `.env`.
 - If it was Koyeb's built-in Postgres (hostname like `ep-….pg.koyeb.app`), it's gone with the account.
@@ -130,7 +132,7 @@ _Updated as work lands._
 - [x] Step 1: `CLAUDE.md` (project root)
 - [x] Step 1: merge repos (2026-10-14). `pantryman-web` was merged into the `pantryman` repo as `app/`, and the backend moved to `backend/`. Both histories are kept. Pending: point Vercel at the new repo and archive `pantryman-web` on GitHub.
 - [x] Step 1: CI (2026-10-14). A single `.github/workflows/ci.yml` with `backend` and `app` jobs.
-- [ ] Redeploy: pick a database and backend host (§5); backend currently down
+- [x] Redeploy (2026-10-15): Render + Neon, see §5
 - [ ] Step 2: done except component library/Tailwind (§2.8) (2026-10-14, see below)
 - [ ] Step 3
 - [ ] Step 4
@@ -192,4 +194,8 @@ Not done in step 2: component library / Tailwind (§2.8). It's a UI-wide restyle
 - **Repository tests ran for the first time and failed:** they created lists for users that didn't exist. Fixed.
 - **New `MigrationTest`** runs the real Flyway migrations on Postgres and checks that every Exposed column exists with the same nullability. It found that `item_list.quantity/is_checked/is_favorite/list_id` were nullable in the database (V3) but NOT NULL in Exposed. **`V8`** fixes this. It deletes items with no list (unreachable anyway) and fills NULLs with the defaults.
 - V7 and V8 are now verified against Postgres 15. All 86 backend tests pass locally.
+
+### Rate limit fix on Render (2026-10-15)
+
+A check against production showed the login rate limit did nothing: 15 failed logins in 8 s were never blocked. It keyed on the last `X-Forwarded-For` entry, which on Render is a proxy address that changes per request, so every request got a fresh allowance. Render is behind Cloudflare, so the key is now `CF-Connecting-IP`. Cloudflare sets that header itself and overwrites any client value. Without the header (local dev) the key falls back to the socket address. A new test checks that rotating `X-Forwarded-For` values doesn't get around the limit.
 

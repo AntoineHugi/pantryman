@@ -51,8 +51,9 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 
 ## Deployment
 
-- **Status (2026-10-14): the backend and production DB are down.** The Koyeb account was lost, and moving to a new host is pending (see `docs/improvement-plan.md` §5). Develop and test locally until then.
-- Backend: Docker image (`backend/Dockerfile`, build context `backend/`, port 8000), previously on Koyeb (`koyeb.yaml`). Env vars: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `VERIFICATION_BASE_URL`, `FRONTEND_BASE_URL`.
+- Backend: **Render** web service `pantryman` (free instance, sleeps when idle; the first request after that takes ~50 s), https://pantryman.onrender.com. Render builds `backend/Dockerfile` with **Root Directory = `backend`**, and auto-deploys on every push to `main`. Env vars are set in Render's dashboard: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `VERIFICATION_BASE_URL` (the Render URL), `FRONTEND_BASE_URL`. A gitignored `backend/.env.production` holds a copy for reference. Never commit it.
+- Database: **Neon** project `pantryman-db`, branch `production` (Frankfurt, free plan). `DB_URL` uses the direct host, not `-pooler`, because Flyway needs a session connection. Neon archives the branch after inactivity; the first query restores it.
+- Render sits behind Cloudflare. The login rate limiter keys on `CF-Connecting-IP` (`plugins/RateLimiting.kt`). Revisit that if the backend moves off Cloudflare.
 - Frontend: Vercel (`app/vercel.json` SPA rewrite), served at pantryman.de. The Vercel project's root directory must be `app`. Until it's repointed, Vercel still deploys from the old `pantryman-web` repo. The CORS allow-list is in `Application.kt`.
 - Flyway migrations run automatically at backend startup.
 

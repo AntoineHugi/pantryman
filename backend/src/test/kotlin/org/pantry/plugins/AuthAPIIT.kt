@@ -267,4 +267,23 @@ class RoutingAuthApiIT : KoinTest {
         assertTrue(statuses.take(10).all { it == HttpStatusCode.Unauthorized })
         assertEquals(HttpStatusCode.TooManyRequests, statuses.last())
     }
+
+    @Test
+    fun `rate limit ignores X-Forwarded-For and keys on CF-Connecting-IP`() = testApplication {
+        setupTestApplication()
+
+        suspend fun loginWith(header: String, value: String) =
+            jsonClient.post("/auth/login") {
+                contentType(ContentType.Application.Json)
+                header(header, value)
+                setBody(LoginRequest("nobody@example.com", "password123"))
+            }.status
+
+        // A client rotating X-Forwarded-For values still shares one bucket
+        val spoofed = (1..11).map { loginWith("X-Forwarded-For", "10.0.0.$it") }
+        assertEquals(HttpStatusCode.TooManyRequests, spoofed.last())
+
+        // Distinct clients behind Cloudflare get their own buckets
+        assertEquals(HttpStatusCode.Unauthorized, loginWith("CF-Connecting-IP", "203.0.113.7"))
+    }
 }
