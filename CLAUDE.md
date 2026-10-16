@@ -54,7 +54,7 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 - Backend: **Render** web service `pantryman` (free instance, sleeps when idle; the first request after that takes ~50 s), https://pantryman.onrender.com. Render builds `backend/Dockerfile` with **Root Directory = `backend`**, and auto-deploys on every push to `main`. Env vars are set in Render's dashboard: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `VERIFICATION_BASE_URL` (the Render URL), `FRONTEND_BASE_URL`. A gitignored `backend/.env.production` holds a copy for reference. Never commit it.
 - Database: **Neon** project `pantryman-db`, branch `production` (Frankfurt, free plan). `DB_URL` uses the direct host, not `-pooler`, because Flyway needs a session connection. Neon archives the branch after inactivity; the first query restores it.
 - Render sits behind Cloudflare. The login rate limiter keys on `CF-Connecting-IP` (`plugins/RateLimiting.kt`). Revisit that if the backend moves off Cloudflare.
-- Frontend: Vercel (`app/vercel.json` SPA rewrite), served at pantryman.de. The Vercel project's root directory must be `app`. Until it's repointed, Vercel still deploys from the old `pantryman-web` repo. The CORS allow-list is in `Application.kt`.
+- Frontend: Vercel (`app/vercel.json` SPA rewrite), served at pantryman.de. The Vercel project's root directory must be `app`. Vercel deploys from this repo (the old `pantryman-web` repo is archived). The CORS allow-list is in `Application.kt`.
 - Flyway migrations run automatically at backend startup.
 
 ## Conventions and gotchas
