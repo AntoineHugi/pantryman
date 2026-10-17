@@ -4,7 +4,7 @@ Personal grocery-list app for me, my partner and relatives. Started as a hand-wr
 
 ## Product direction
 
-1. **Mobile app (APK)** for family members. Plan: make the web app a PWA, then wrap it with Capacitor. Not a separate native rewrite.
+1. **Mobile app (APK)** for family members. Plan: wrap the web app with Capacitor (bundled assets, no PWA step). Not a separate native rewrite.
 2. **Sharing via households.** Done (2026-10-17). A list is personal or shared with one of the user's households. Recipes and meal plans should belong to a household too.
 3. **Recipes → grocery list.** Recipe database with ingredients; the user picks recipes for the week and the grocery list is generated (scaled by servings, merged by ingredient + unit, pantry staples skipped).
 
