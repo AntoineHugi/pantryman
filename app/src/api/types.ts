@@ -17,6 +17,8 @@ export interface User {
   export interface SignupRequest {
     email: string;
     password: string;
+    // In-app path to open after verifying and logging in, e.g. a household invite link
+    redirectPath?: string;
   }
   
   export interface LoginRequest {

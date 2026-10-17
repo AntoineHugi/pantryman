@@ -12,6 +12,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import io.ktor.serialization.kotlinx.json.*
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.Runs
@@ -45,7 +46,7 @@ import org.pantry.repositories.HouseholdRepository
 class RoutingAuthApiIT : KoinTest {
 
     private val emailService = mockk<EmailService>().also {
-        coEvery { it.sendVerificationEmail(any(), any()) } just Runs
+        coEvery { it.sendVerificationEmail(any(), any(), any()) } just Runs
     }
 
     @JvmField
@@ -108,10 +109,14 @@ class RoutingAuthApiIT : KoinTest {
             install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) { json() }
         }
 
-    private suspend fun ApplicationTestBuilder.signup(email: String, password: String = "password123") =
+    private suspend fun ApplicationTestBuilder.signup(
+        email: String,
+        password: String = "password123",
+        redirectPath: String? = null
+    ) =
         jsonClient.post("/auth/signup") {
             contentType(ContentType.Application.Json)
-            setBody(SignupRequest(email, password))
+            setBody(SignupRequest(email, password, redirectPath))
         }
 
     private suspend fun ApplicationTestBuilder.login(email: String, password: String = "password123") =
@@ -198,6 +203,57 @@ class RoutingAuthApiIT : KoinTest {
         assertEquals(HttpStatusCode.Found, response.status)
         assertEquals("http://frontend.test/login?verified=true", response.headers[HttpHeaders.Location])
         assertEquals(true, userRepo.getByEmail("verify@example.com")?.isVerified)
+    }
+
+    @Test
+    fun `signup redirect path goes into the verification link`() = testApplication {
+        setupTestApplication()
+
+        val response = signup("invited@example.com", redirectPath = "/households?join=ABCD2345")
+
+        assertEquals(HttpStatusCode.Created, response.status)
+        coVerify(exactly = 1) {
+            emailService.sendVerificationEmail("invited@example.com", any(), "/households?join=ABCD2345")
+        }
+    }
+
+    @Test
+    fun `POST signup rejects a redirect path to another site`() = testApplication {
+        setupTestApplication()
+
+        val response = signup("evil@example.com", redirectPath = "//evil.example.com")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals(null, userRepo.getByEmail("evil@example.com"))
+    }
+
+    @Test
+    fun `GET verify passes the next path on to the login page`() = testApplication {
+        setupTestApplication()
+        signup("next@example.com")
+        val token = checkNotNull(userRepo.getByEmail("next@example.com")?.verificationToken)
+
+        val noRedirectClient = createClient { followRedirects = false }
+        val response = noRedirectClient.get("/auth/verify?token=$token&next=%2Fhouseholds%3Fjoin%3DABCD2345")
+
+        assertEquals(HttpStatusCode.Found, response.status)
+        assertEquals(
+            "http://frontend.test/login?verified=true&next=%2Fhouseholds%3Fjoin%3DABCD2345",
+            response.headers[HttpHeaders.Location]
+        )
+    }
+
+    @Test
+    fun `GET verify drops an unsafe next path but still verifies`() = testApplication {
+        setupTestApplication()
+        signup("unsafe@example.com")
+        val token = checkNotNull(userRepo.getByEmail("unsafe@example.com")?.verificationToken)
+
+        val noRedirectClient = createClient { followRedirects = false }
+        val response = noRedirectClient.get("/auth/verify?token=$token&next=https%3A%2F%2Fevil.example.com")
+
+        assertEquals("http://frontend.test/login?verified=true", response.headers[HttpHeaders.Location])
+        assertEquals(true, userRepo.getByEmail("unsafe@example.com")?.isVerified)
     }
 
     @Test

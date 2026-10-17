@@ -12,8 +12,8 @@ export const authApi = {
     return response.data;
   },
 
-  resendVerification: async (email: string): Promise<void> => {
-    await apiClient.post('/auth/resend-verification', { email });
+  resendVerification: async (email: string, redirectPath?: string): Promise<void> => {
+    await apiClient.post('/auth/resend-verification', { email, redirectPath });
   },
 
   changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {

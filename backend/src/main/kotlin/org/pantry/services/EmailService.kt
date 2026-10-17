@@ -33,8 +33,10 @@ class EmailService(
         }
     }
 
-    suspend fun sendVerificationEmail(to: String, token: UUID) {
-        val verificationLink = "$verificationBaseUrl/auth/verify?token=$token"
+    // redirectPath must already be checked with isSafeRedirectPath
+    suspend fun sendVerificationEmail(to: String, token: UUID, redirectPath: String?) {
+        val nextParam = redirectPath?.let { "&next=${it.encodeURLParameter()}" } ?: ""
+        val verificationLink = "$verificationBaseUrl/auth/verify?token=$token$nextParam"
 
         try {
             val response = client.post("https://api.resend.com/emails") {

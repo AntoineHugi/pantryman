@@ -1,6 +1,7 @@
 package org.pantry.plugins
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.encodeURLParameter
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.plugins.BadRequestException
@@ -15,6 +16,7 @@ import org.pantry.models.LoginRequest
 import org.pantry.models.ResendVerificationRequest
 import org.pantry.models.SignupRequest
 import org.pantry.services.AuthService
+import org.pantry.services.isSafeRedirectPath
 import java.util.UUID
 
 // Errors are mapped to responses in StatusPages.kt
@@ -27,7 +29,7 @@ fun Application.authAPI() {
             rateLimit(AUTH_RATE_LIMIT) {
                 post("/signup") {
                     val request = call.receive<SignupRequest>()
-                    val response = authService.signup(request.email, request.password)
+                    val response = authService.signup(request.email, request.password, request.redirectPath)
                     call.respond(HttpStatusCode.Created, response)
                 }
 
@@ -43,7 +45,7 @@ fun Application.authAPI() {
 
                 post("/resend-verification") {
                     val request = call.receive<ResendVerificationRequest>()
-                    authService.resendVerification(request.email)
+                    authService.resendVerification(request.email, request.redirectPath)
                     call.respond(HttpStatusCode.OK, mapOf("message" to "Verification email sent."))
                 }
             }
@@ -53,7 +55,11 @@ fun Application.authAPI() {
                     ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
                     ?: throw BadRequestException("Missing or invalid token")
                 val verified = authService.verifyEmail(token)
-                call.respondRedirect("$frontendBaseUrl/login?verified=$verified")
+                // Carry the signup's redirect path (e.g. an invite link) on to the login page.
+                // An unsafe value is dropped rather than failing the verification.
+                val next = call.request.queryParameters["next"]?.takeIf(::isSafeRedirectPath)
+                val nextParam = next?.let { "&next=${it.encodeURLParameter()}" } ?: ""
+                call.respondRedirect("$frontendBaseUrl/login?verified=$verified$nextParam")
             }
 
             authenticate("auth-jwt") {

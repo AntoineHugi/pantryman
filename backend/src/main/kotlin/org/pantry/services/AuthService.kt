@@ -19,8 +19,9 @@ class AuthService(
     private val jwtAudience: String
 ) {
 
-    suspend fun signup(rawEmail: String, password: String): SignupResponse {
+    suspend fun signup(rawEmail: String, password: String, redirectPath: String? = null): SignupResponse {
         val email = normalizeEmail(rawEmail)
+        requireSafeRedirectPath(redirectPath)
 
         // Validate input
         if (email.isBlank() || !email.contains("@")) {
@@ -45,7 +46,7 @@ class AuthService(
 
         // Send verification email; if it fails, remove the user so signup can be retried
         try {
-            emailService.sendVerificationEmail(email, verificationToken)
+            emailService.sendVerificationEmail(email, verificationToken, redirectPath)
         } catch (e: Exception) {
             userRepository.delete(userId)
             throw e
@@ -83,8 +84,9 @@ class AuthService(
         return true
     }
 
-    suspend fun resendVerification(rawEmail: String) {
+    suspend fun resendVerification(rawEmail: String, redirectPath: String? = null) {
         val email = normalizeEmail(rawEmail)
+        requireSafeRedirectPath(redirectPath)
         val user = userRepository.getByEmail(email)
             ?: throw IllegalArgumentException("No account found with this email.")
 
@@ -94,7 +96,7 @@ class AuthService(
 
         val newToken = UUID.randomUUID()
         userRepository.updateVerificationToken(UUID.fromString(user.id), newToken)
-        emailService.sendVerificationEmail(email, newToken)
+        emailService.sendVerificationEmail(email, newToken, redirectPath)
     }
 
     fun changePassword(userId: UUID, currentPassword: String, newPassword: String) {
@@ -128,6 +130,12 @@ class AuthService(
 
     private fun normalizeEmail(email: String): String = email.trim().lowercase()
 
+    private fun requireSafeRedirectPath(path: String?) {
+        if (path != null && !isSafeRedirectPath(path)) {
+            throw IllegalArgumentException("Invalid redirect path")
+        }
+    }
+
     private fun generateToken(userId: UUID): String {
         return JWT.create()
             .withAudience(jwtAudience)
@@ -139,3 +147,14 @@ class AuthService(
 }
 
 class EmailNotVerifiedException(message: String) : Exception(message)
+
+/**
+ * True for a path inside the frontend ("/households?join=ABC"), so it can't be used to send
+ * users to another site ("//evil.com", "https://evil.com", "/\\evil.com").
+ */
+fun isSafeRedirectPath(path: String): Boolean =
+    path.length <= 500 &&
+        path.startsWith("/") &&
+        !path.startsWith("//") &&
+        '\\' !in path &&
+        path.none { it.isWhitespace() || it.isISOControl() }

@@ -5,7 +5,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SignupRequest(
     val email: String,
-    val password: String
+    val password: String,
+    // In-app path to open after the user verifies and logs in, e.g. a household invite link
+    val redirectPath: String? = null
 )
 
 @Serializable
@@ -29,7 +31,8 @@ data class SignupResponse(
 
 @Serializable
 data class ResendVerificationRequest(
-    val email: String
+    val email: String,
+    val redirectPath: String? = null
 )
 
 @Serializable

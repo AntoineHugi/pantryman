@@ -31,7 +31,7 @@ class AuthServiceTest {
         every { repo.create(any(), any(), any(), any()) } answers {
             User(firstArg<UUID>().toString(), secondArg(), thirdArg(), verificationToken = arg<UUID>(3).toString())
         }
-        coEvery { emailService.sendVerificationEmail(any(), any()) } just Runs
+        coEvery { emailService.sendVerificationEmail(any(), any(), any()) } just Runs
     }
 
     @Test
@@ -44,7 +44,7 @@ class AuthServiceTest {
 
         assertEquals(email, result.email)
         verify(exactly = 1) { repo.create(any(), email, any(), any()) }
-        coVerify(exactly = 1) { emailService.sendVerificationEmail(email, any()) }
+        coVerify(exactly = 1) { emailService.sendVerificationEmail(email, any(), null) }
     }
 
     @Test
@@ -66,7 +66,7 @@ class AuthServiceTest {
             User(firstArg<UUID>().toString(), secondArg(), thirdArg())
         }
         every { repo.delete(any()) } just Runs
-        coEvery { emailService.sendVerificationEmail(any(), any()) } throws RuntimeException("Resend down")
+        coEvery { emailService.sendVerificationEmail(any(), any(), any()) } throws RuntimeException("Resend down")
 
         assertThrows<RuntimeException> {
             runBlocking { service.signup(email, "password123") }
@@ -210,5 +210,27 @@ class AuthServiceTest {
 
         verify(exactly = 0) { householdRepo.removeMemberFromAll(any()) }
         verify(exactly = 0) { repo.delete(any()) }
+    }
+
+    @Test
+    fun `isSafeRedirectPath accepts in-app paths only`() {
+        assertTrue(isSafeRedirectPath("/households?join=ABCD2345"))
+        assertTrue(isSafeRedirectPath("/lists"))
+
+        assertFalse(isSafeRedirectPath("households"))
+        assertFalse(isSafeRedirectPath("https://evil.example.com"))
+        assertFalse(isSafeRedirectPath("//evil.example.com"))
+        assertFalse(isSafeRedirectPath("/\\evil.example.com"))
+        assertFalse(isSafeRedirectPath("/lists\nSet-Cookie: x"))
+        assertFalse(isSafeRedirectPath("/" + "a".repeat(500)))
+    }
+
+    @Test
+    fun `signup should reject an unsafe redirect path before creating the user`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            runBlocking { service.signup("test@example.com", "password123", "//evil.example.com") }
+        }
+        assertEquals("Invalid redirect path", exception.message)
+        verify(exactly = 0) { repo.create(any(), any(), any(), any()) }
     }
 }

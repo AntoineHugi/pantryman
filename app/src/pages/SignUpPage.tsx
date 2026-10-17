@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getErrorMessage } from '../api/client';
+import { safeRedirectPath, withNext } from '../utils/redirectPath';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,9 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const { signup } = useAuth();
+  const [searchParams] = useSearchParams();
+  // e.g. an invite link: the verification email brings the user back to it
+  const next = safeRedirectPath(searchParams.get('next'));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +26,7 @@ export default function SignupPage() {
     }
 
     try {
-      const response = await signup({ email, password });
+      const response = await signup({ email, password, redirectPath: next ?? undefined });
       setSuccess(response.message);
     } catch (err) {
       setError(getErrorMessage(err, 'Signup failed'));
@@ -36,7 +40,7 @@ export default function SignupPage() {
           <h1 style={{ marginTop: 0 }}>Check your email</h1>
           <p>We've sent a verification link to <strong>{email}</strong>.</p>
           <p>Click the link in the email to verify your account, then you can log in.</p>
-          <Link to="/login">
+          <Link to={withNext('/login', next)}>
             <button className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
               Go to Login
             </button>
@@ -90,7 +94,7 @@ export default function SignupPage() {
           </button>
         </form>
         <p style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: 0 }}>
-          Already have an account? <Link to="/login">Login</Link>
+          Already have an account? <Link to={withNext('/login', next)}>Login</Link>
         </p>
       </div>
     </div>

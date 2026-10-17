@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-do
 import { isAxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
 import { getErrorMessage } from '../api/client';
+import { isInviteLink, safeRedirectPath, withNext } from '../utils/redirectPath';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -12,9 +13,9 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  // Set by ProtectedRoute; only follow in-app paths
-  const from = (location.state as { from?: string } | null)?.from;
-  const redirectTo = from?.startsWith('/') && !from.startsWith('//') ? from : '/lists';
+  // state.from is set by ProtectedRoute; ?next= comes from the signup page or the verification email
+  const next = safeRedirectPath((location.state as { from?: string } | null)?.from ?? searchParams.get('next'));
+  const redirectTo = next ?? '/lists';
   const verified = searchParams.get('verified') === 'true';
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,6 +41,11 @@ export default function LoginPage() {
         {verified && (
           <p style={{ color: 'green', marginBottom: '1rem' }}>
             Email verified! You can now log in.
+          </p>
+        )}
+        {!verified && isInviteLink(next) && (
+          <p style={{ marginBottom: '1rem' }}>
+            You've been invited to a household. Log in, or sign up if you're new, to join it.
           </p>
         )}
         <form onSubmit={handleSubmit}>
@@ -70,7 +76,7 @@ export default function LoginPage() {
           </button>
         </form>
         <p style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: 0 }}>
-          Don't have an account? <Link to="/signup">Sign up</Link>
+          Don't have an account? <Link to={withNext('/signup', next)}>Sign up</Link>
         </p>
       </div>
     </div>
