@@ -30,6 +30,11 @@ export default function Header() {
     navigate('/login');
   };
 
+  const handleHouseholds = () => {
+    setIsDropdownOpen(false);
+    navigate('/households');
+  };
+
   const handleSettings = () => {
     setIsDropdownOpen(false);
     navigate('/settings');
@@ -66,6 +71,9 @@ export default function Header() {
             </button>
             {isDropdownOpen && (
               <div className="dropdown-menu">
+                <button className="dropdown-item" onClick={handleHouseholds}>
+                  Households
+                </button>
                 <button className="dropdown-item" onClick={handleSettings}>
                   Settings
                 </button>

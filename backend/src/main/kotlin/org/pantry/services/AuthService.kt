@@ -5,6 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import org.mindrot.jbcrypt.BCrypt
 import org.pantry.models.AuthResponse
 import org.pantry.models.SignupResponse
+import org.pantry.repositories.HouseholdRepository
 import org.pantry.repositories.UserRepository
 import java.util.Date
 import java.util.UUID
@@ -12,6 +13,7 @@ import java.util.UUID
 class AuthService(
     private val userRepository: UserRepository,
     private val emailService: EmailService,
+    private val householdRepository: HouseholdRepository,
     private val jwtSecret: String,
     private val jwtIssuer: String,
     private val jwtAudience: String
@@ -119,6 +121,8 @@ class AuthService(
             throw SecurityException("Password is incorrect")
         }
 
+        // Hands the user's shared lists to the other members, so they aren't deleted with the account
+        householdRepository.removeMemberFromAll(userId)
         userRepository.delete(userId)
     }
 

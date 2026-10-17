@@ -5,7 +5,7 @@ Personal grocery-list app for me, my partner and relatives. Started as a hand-wr
 ## Product direction
 
 1. **Mobile app (APK)** for family members. Plan: make the web app a PWA, then wrap it with Capacitor. Not a separate native rewrite.
-2. **Sharing via households.** Lists (and later recipes) belong to a household, not a single user. This comes before recipes.
+2. **Sharing via households.** Done (2026-10-17). A list is personal or shared with one of the user's households. Recipes and meal plans should belong to a household too.
 3. **Recipes → grocery list.** Recipe database with ingredients; the user picks recipes for the week and the grocery list is generated (scaled by servings, merged by ingredient + unit, pantry staples skipped).
 
 The full roadmap and progress are in `docs/improvement-plan.md`. Update its Progress section when a step lands.
@@ -32,8 +32,8 @@ One git repo (GitHub: `AntoineHugi/pantryman`). The old `pantryman-web` repo was
 
 ### Frontend structure (`app/src/`)
 
-- `api/`: axios client and one module per resource (`lists.ts`, `items.ts`, `auth.ts`), plus `types.ts`. Pages call these modules and never call axios directly.
-- `hooks/useGroceryLists.ts`: TanStack Query hooks (queries + mutations, optimistic item updates). Pages use these for server data instead of `useEffect` + `useState`.
+- `api/`: axios client and one module per resource (`lists.ts`, `items.ts`, `households.ts`, `auth.ts`), plus `types.ts`. Pages call these modules and never call axios directly.
+- `hooks/useGroceryLists.ts`, `hooks/useHouseholds.ts`: TanStack Query hooks (queries + mutations, optimistic item updates). Pages use these for server data instead of `useEffect` + `useState`.
 - `pages/`, `components/`, `contexts/AuthContext.tsx` (token in localStorage; the context object is in `AuthContextValue.ts`), `hooks/`.
 
 ## Commands
@@ -59,7 +59,8 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 
 ## Conventions and gotchas
 
-- **Authorization:** every route under `authenticate("auth-jwt")` gets the user from `call.userId` (the JWT claim) and never from the request body. Any query on a child resource must be scoped by its parent. For example, item queries always filter by `listId` as well as `itemId`, after the route has checked that the user owns the list. Add a test for cross-user access whenever you add an endpoint.
+- **Authorization:** every route under `authenticate("auth-jwt")` gets the user from `call.userId` (the JWT claim) and never from the request body. Any query on a child resource must be scoped by its parent. For example, item queries always filter by `listId` as well as `itemId`, after the route has checked that the user can access the list. Add a test for cross-user access whenever you add an endpoint.
+- **Households:** a user can access a list if they own it (`grocery_lists.user_id`) or are a member of its household (`grocery_lists.household_id`, NULL = personal). `GroceryListRepository.accessibleBy()` is that rule; scope list queries with it. Any member can rename, edit or delete a shared list; only the owner can change who it's shared with. Members join with an invite code (`/households?join=CODE` link). The household's owner (`households.owner_id`, initially the creator) can rename it and remove members; removing a member also replaces the invite code. When a member leaves, is removed or deletes their account, their shared lists pass to the owner (or, if the owner is leaving, to the longest-standing remaining member, who becomes the owner); when the last member leaves, the household is deleted and its lists become personal (`HouseholdRepository.removeMember`).
 - **Migrations:** never edit an applied migration; add a new `V<n+1>__...sql`. Update the matching Exposed table object at the same time. Most tests build their schema from the Exposed objects (`SchemaUtils.create`), not from the migrations. `MigrationTest` is the exception: it runs Flyway and checks that the columns and nullability match. Keep it passing, and add new tables to its list.
 - **Ordering:** Postgres has no stable row order. Queries that return lists must `orderBy` (currently `createdAt`, then `id`).
 - **Emails** are stored trimmed and lowercase, and looked up case-insensitively.

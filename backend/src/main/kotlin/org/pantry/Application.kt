@@ -57,4 +57,5 @@ fun Application.module() {
     configureRateLimiting()
     authAPI()
     groceriesApi()
+    householdsApi()
 }

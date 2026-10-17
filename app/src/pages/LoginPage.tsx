@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
 import { getErrorMessage } from '../api/client';
@@ -11,6 +11,10 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  // Set by ProtectedRoute; only follow in-app paths
+  const from = (location.state as { from?: string } | null)?.from;
+  const redirectTo = from?.startsWith('/') && !from.startsWith('//') ? from : '/lists';
   const verified = searchParams.get('verified') === 'true';
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,7 +23,7 @@ export default function LoginPage() {
 
     try {
       await login({ email, password });
-      navigate('/lists');
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       if (isAxiosError(err) && err.response?.status === 403) {
         setError('Please verify your email before logging in.');

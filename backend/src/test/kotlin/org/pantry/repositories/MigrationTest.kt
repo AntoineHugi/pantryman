@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.pantry.postgres.tables.GroceryListTable
+import org.pantry.postgres.tables.HouseholdMemberTable
+import org.pantry.postgres.tables.HouseholdTable
 import org.pantry.postgres.tables.ItemTable
 import org.pantry.postgres.tables.UserTable
 import org.testcontainers.containers.PostgreSQLContainer
@@ -37,7 +39,7 @@ class MigrationTest {
 
         Database.connect(postgres.jdbcUrl, "org.postgresql.Driver", postgres.username, postgres.password)
 
-        for (table in listOf(UserTable, GroceryListTable, ItemTable)) {
+        for (table in listOf(UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable)) {
             val expected = table.columns.associate { it.name to it.columnType.nullable }
             assertEquals(expected, migratedColumns(table), "Columns of ${table.tableName}")
         }

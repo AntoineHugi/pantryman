@@ -3,7 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
 import type { Item } from "../api/types";
 import AddItemForm from "../components/AddItemForm";
-import { useDeleteItem, useList, useRenameList, useUpdateItem } from "../hooks/useGroceryLists";
+import { useAuth } from "../hooks/useAuth";
+import { useDeleteItem, useList, useRenameList, useSetListHousehold, useUpdateItem } from "../hooks/useGroceryLists";
+import { useHouseholds } from "../hooks/useHouseholds";
 import '../App.css';
 
 function ListDetailsPage() {
@@ -20,6 +22,9 @@ function ListDetailsPage() {
   const updateItem = useUpdateItem(id);
   const deleteItem = useDeleteItem(id);
   const renameList = useRenameList(id);
+  const setListHousehold = useSetListHousehold(id);
+  const { data: households = [] } = useHouseholds();
+  const { userId } = useAuth();
   // Item changes show immediately and roll back on failure; surface the last failure
   const actionError = updateItem.error ?? deleteItem.error;
 
@@ -80,6 +85,12 @@ function ListDetailsPage() {
     setEditedName("");
   };
 
+  const handleShareChange = (householdId: string) => {
+    setListHousehold.mutate(householdId || null, {
+      onError: (err) => alert(getErrorMessage(err, "Could not change who the list is shared with")),
+    });
+  };
+
   if (error) return <p style={{ color: "red" }}>{getErrorMessage(error, "Could not load grocery list")}</p>;
   if (!list) return <div className="loading">Loading...</div>;
 
@@ -134,6 +145,31 @@ function ListDetailsPage() {
           </div>
         )}
       </div>
+
+      {list.userId === userId && households.length > 0 ? (
+        <div className="form-group list-sharing">
+          <select
+            className="form-input"
+            value={list.householdId ?? ""}
+            onChange={(e) => handleShareChange(e.target.value)}
+            disabled={setListHousehold.isPending}
+            aria-label="Share with"
+          >
+            <option value="">Personal (only me)</option>
+            {households.map((h) => (
+              <option key={h.id} value={h.id}>
+                Shared with {h.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        list.householdId && (
+          <p className="muted list-sharing">
+            Shared with {households.find((h) => h.id === list.householdId)?.name ?? "your household"}
+          </p>
+        )
+      )}
 
       <div className="section">
         <div className="section-header">

@@ -12,19 +12,37 @@ import org.pantry.models.CreateGroceryListRequest
 import org.pantry.models.CreateItemRequest
 import org.pantry.models.ItemUpdateRequest
 import org.pantry.models.UpdateGroceryListRequest
+import org.pantry.models.UpdateListHouseholdRequest
 import org.pantry.services.GroceryListService
+import org.pantry.services.HouseholdService
 import org.pantry.services.ItemService
 import java.util.UUID
 
 fun Application.groceriesApi() {
     val groceryListService by inject <GroceryListService>()
     val itemService by inject <ItemService>()
+    val householdService by inject <HouseholdService>()
 
-    // Item routes act on a list the caller must own; returns the list ID.
-    fun ApplicationCall.requireOwnedListId(): UUID {
+    // Item routes act on a list the caller must have access to (owner or household member);
+    // returns the list ID.
+    fun ApplicationCall.requireAccessibleListId(): UUID {
         val listId = uuidParameter("listId")
         groceryListService.getById(listId, userId) ?: throw ForbiddenException("List not found or unauthorized")
         return listId
+    }
+
+    // Parses a householdId from a request body; the caller must be a member. Null stays null.
+    fun ApplicationCall.requireMemberHouseholdId(raw: String?): UUID? {
+        if (raw == null) return null
+        val householdId = try {
+            UUID.fromString(raw)
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("Invalid householdId")
+        }
+        if (!householdService.isMember(householdId, userId)) {
+            throw ForbiddenException("You are not a member of this household")
+        }
+        return householdId
     }
 
     routing {
@@ -32,7 +50,8 @@ fun Application.groceriesApi() {
             route("/lists") {
                 post {
                     val request = call.receive<CreateGroceryListRequest>()
-                    val created = groceryListService.create(request.name, call.userId)
+                    val householdId = call.requireMemberHouseholdId(request.householdId)
+                    val created = groceryListService.create(request.name, call.userId, householdId)
                     call.respond(HttpStatusCode.Created, created)
                 }
                 get {
@@ -52,6 +71,19 @@ fun Application.groceriesApi() {
                         }
                         call.respond(HttpStatusCode.OK)
                     }
+                    // Share the list with a household, or make it personal again (householdId = null)
+                    put("/household") {
+                        val id = call.uuidParameter("listId")
+                        val list = groceryListService.getById(id, call.userId)
+                            ?: throw NotFoundException("List not found")
+                        if (list.userId != call.userId.toString()) {
+                            throw ForbiddenException("Only the list's owner can change who it is shared with")
+                        }
+                        val request = call.receive<UpdateListHouseholdRequest>()
+                        val householdId = call.requireMemberHouseholdId(request.householdId)
+                        groceryListService.setHousehold(id, householdId, call.userId)
+                        call.respond(groceryListService.getById(id, call.userId) ?: throw NotFoundException("List not found"))
+                    }
                     delete {
                         if (!groceryListService.delete(call.uuidParameter("listId"), call.userId)) {
                             throw NotFoundException("List not found")
@@ -60,7 +92,7 @@ fun Application.groceriesApi() {
                     }
                     route("/items") {
                         post {
-                            val listId = call.requireOwnedListId()
+                            val listId = call.requireAccessibleListId()
                             val request = call.receive<CreateItemRequest>()
                             val item = itemService.create(
                                 listId = listId,
@@ -70,19 +102,19 @@ fun Application.groceriesApi() {
                             call.respond(HttpStatusCode.Created, item)
                         }
                         get {
-                            val listId = call.requireOwnedListId()
+                            val listId = call.requireAccessibleListId()
                             call.respond(itemService.getAll(listId))
                         }
                         route("/{itemId}") {
                             delete {
-                                val listId = call.requireOwnedListId()
+                                val listId = call.requireAccessibleListId()
                                 if (!itemService.delete(listId, call.uuidParameter("itemId"))) {
                                     throw NotFoundException("Item not found")
                                 }
                                 call.respond(HttpStatusCode.NoContent)
                             }
                             patch {
-                                val listId = call.requireOwnedListId()
+                                val listId = call.requireAccessibleListId()
                                 val itemId = call.uuidParameter("itemId")
                                 val request = call.receive<ItemUpdateRequest>()
                                 if (!itemService.update(listId, itemId, request)) {

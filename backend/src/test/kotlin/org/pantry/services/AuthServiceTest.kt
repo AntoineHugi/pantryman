@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.assertThrows
 import org.mindrot.jbcrypt.BCrypt
 import org.pantry.models.User
+import org.pantry.repositories.HouseholdRepository
 import org.pantry.repositories.UserRepository
 import java.util.UUID
 
@@ -15,14 +16,15 @@ class AuthServiceTest {
 
     private val repo = mockk<UserRepository>()
     private val emailService = mockk<EmailService>()
+    private val householdRepo = mockk<HouseholdRepository>()
     private val jwtSecret = "test-secret"
     private val jwtIssuer = "test-issuer"
     private val jwtAudience = "test-audience"
-    private val service = AuthService(repo, emailService, jwtSecret, jwtIssuer, jwtAudience)
+    private val service = AuthService(repo, emailService, householdRepo, jwtSecret, jwtIssuer, jwtAudience)
 
     @AfterEach
     fun tearDown() {
-        clearMocks(repo, emailService)
+        clearMocks(repo, emailService, householdRepo)
     }
 
     private fun stubSuccessfulCreate() {
@@ -180,5 +182,33 @@ class AuthServiceTest {
             User(UUID.randomUUID().toString(), email, BCrypt.hashpw("password123", BCrypt.gensalt()), isVerified = true)
 
         assertNull(service.login(email, "wrongpassword"))
+    }
+
+    @Test
+    fun `deleteAccount leaves households before deleting the user`() {
+        val userId = UUID.randomUUID()
+        val hash = BCrypt.hashpw("password123", BCrypt.gensalt(4))
+        every { repo.getById(userId) } returns User(userId.toString(), "a@example.com", hash, isVerified = true)
+        every { householdRepo.removeMemberFromAll(userId) } just Runs
+        every { repo.delete(userId) } just Runs
+
+        service.deleteAccount(userId, "password123")
+
+        verifyOrder {
+            householdRepo.removeMemberFromAll(userId)
+            repo.delete(userId)
+        }
+    }
+
+    @Test
+    fun `deleteAccount with wrong password changes nothing`() {
+        val userId = UUID.randomUUID()
+        val hash = BCrypt.hashpw("password123", BCrypt.gensalt(4))
+        every { repo.getById(userId) } returns User(userId.toString(), "a@example.com", hash, isVerified = true)
+
+        assertThrows<SecurityException> { service.deleteAccount(userId, "wrong-password") }
+
+        verify(exactly = 0) { householdRepo.removeMemberFromAll(any()) }
+        verify(exactly = 0) { repo.delete(any()) }
     }
 }

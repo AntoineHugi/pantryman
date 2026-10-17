@@ -134,7 +134,7 @@ _Updated as work lands._
 - [x] Step 1: CI (2026-10-14). A single `.github/workflows/ci.yml` with `backend` and `app` jobs.
 - [x] Redeploy (2026-10-15): Render + Neon, see §5
 - [ ] Step 2: done except component library/Tailwind (§2.8) (2026-10-14, see below)
-- [ ] Step 3
+- [ ] Step 3: households and sharing done (2026-10-17, see below). PWA and Capacitor still to do.
 - [ ] Step 4
 - [ ] Step 5
 
@@ -198,4 +198,25 @@ Not done in step 2: component library / Tailwind (§2.8). It's a UI-wide restyle
 ### Rate limit fix on Render (2026-10-15)
 
 A check against production showed the login rate limit did nothing: 15 failed logins in 8 s were never blocked. It keyed on the last `X-Forwarded-For` entry, which on Render is a proxy address that changes per request, so every request got a fresh allowance. Render is behind Cloudflare, so the key is now `CF-Connecting-IP`. Cloudflare sets that header itself and overwrites any client value. Without the header (local dev) the key falls back to the socket address. A new test checks that rotating `X-Forwarded-For` values doesn't get around the limit.
+
+### Step 3: households (2026-10-17)
+
+Users can create households, join one with an invite code, and share lists with them.
+
+| Piece | What changed |
+|---|---|
+| Data model | Migration `V9`: `households` (name, unique `invite_code`, `owner_id`), `household_members` (household, user, `joined_at`), and a nullable `grocery_lists.household_id` (`ON DELETE SET NULL`). NULL = personal list. Existing lists stay personal; nothing is migrated. |
+| Access rule | `GroceryListRepository.accessibleBy()`: the owner, or any member of the list's household. All list queries and the item routes' list check use it. Only the owner can change who a list is shared with. |
+| API | `GET/POST /households`, `POST /households/join` (rate limited per IP, 10/min), `POST /households/{id}/invite-code` (new code, old one stops working), `POST /households/{id}/leave`. Owner only: `PATCH /households/{id}` (rename) and `DELETE /households/{id}/members/{userId}` (remove a member, which also replaces the invite code). `POST /lists` takes an optional `householdId`. `PUT /lists/{id}/household` with `{"householdId": "..." \| null}` shares or unshares. `GroceryList` responses gain `householdId`. All additive. |
+| Owner | The creator owns the household and can rename it and remove members. When the owner leaves, the longest-standing remaining member becomes the owner. |
+| Leaving | A leaving or removed member's shared lists pass to the owner (to the new owner if the owner leaves), so the household keeps them. The last member leaving deletes the household and its lists become theirs again. Account deletion does the same before deleting the user, so a partner deleting their account doesn't delete the shared lists. |
+| Invite codes | 8 characters without 0/O/1/I. Input ignores case, spaces and dashes. Any member can see the code, share it and replace it. |
+| Frontend | New Households page (menu → Households): members, invite code, share invite link (phone share sheet or clipboard), new code, leave, join, create. The owner also gets rename and remove-member buttons. Lists page groups lists by household and lets you pick a household when creating a list. The list page has a "Shared with" selector for the owner. Login now returns to the page that asked for it, so an invite link works when logged out. |
+
+Verification: 112 backend tests pass, including the Testcontainers tests and `MigrationTest` (V9 checked against Postgres 15). New `HouseholdAPIIT` covers joining, sharing, cross-user access (non-members, non-owners, unknown codes), leaving and account deletion. Frontend `tsc -b`, `lint` and `build` pass. Not tested by hand in a browser yet.
+
+Not done / follow-ups:
+- A new user who opens an invite link, signs up and verifies their email lands on the login page without the code. They have to open the link again.
+- Anyone with the invite code can join. Make a new code if it leaks.
+- No real-time sync: other members' changes show on refetch (window focus, or after 10 s on navigation). If it's needed, start with polling the open list every few seconds (one `refetchInterval` option); SSE/WebSockets only if that's not enough.
 

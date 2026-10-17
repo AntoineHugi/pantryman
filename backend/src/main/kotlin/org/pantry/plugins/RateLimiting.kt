@@ -7,10 +7,15 @@ import io.ktor.server.plugins.ratelimit.*
 import kotlin.time.Duration.Companion.minutes
 
 val AUTH_RATE_LIMIT = RateLimitName("auth")
+val JOIN_RATE_LIMIT = RateLimitName("household-join")
 
 fun Application.configureRateLimiting() {
     install(RateLimit) {
         register(AUTH_RATE_LIMIT) {
+            rateLimiter(limit = 10, refillPeriod = 1.minutes)
+            requestKey { call -> call.clientIp() }
+        }
+        register(JOIN_RATE_LIMIT) {
             rateLimiter(limit = 10, refillPeriod = 1.minutes)
             requestKey { call -> call.clientIp() }
         }

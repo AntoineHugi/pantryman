@@ -28,7 +28,10 @@ export interface User {
     id: string;
     name: string;
     items: Item[];
+    // The owner: only they can change who the list is shared with
     userId: string;
+    // null for a personal list
+    householdId?: string | null;
   }
   
   export interface Item {
@@ -41,6 +44,21 @@ export interface User {
   
   export interface CreateListRequest {
     name: string;
+    householdId?: string | null;
+  }
+
+  export interface HouseholdMember {
+    userId: string;
+    email: string;
+  }
+
+  export interface Household {
+    id: string;
+    name: string;
+    inviteCode: string;
+    // Can rename the household and remove members
+    ownerId: string;
+    members: HouseholdMember[];
   }
   
   export interface CreateItemRequest {

@@ -4,7 +4,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CreateGroceryListRequest(
-    val name: String
+    val name: String,
+    // Omit for a personal list
+    val householdId: String? = null
 )
 
 @Serializable
@@ -17,5 +19,13 @@ data class GroceryList(
     val id: String,
     val name: String,
     val items: List<Item>,
-    val userId: String
+    // The owner: the creator, or the member who took over when the creator left the household
+    val userId: String,
+    val householdId: String? = null
+)
+
+@Serializable
+data class UpdateListHouseholdRequest(
+    // null makes the list personal again
+    val householdId: String? = null
 )

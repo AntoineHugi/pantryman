@@ -6,6 +6,7 @@ import SignupPage from './pages/SignUpPage';
 import ListsPage from './pages/ListsPage';
 import ListDetailsPage from './pages/ListDetailsPage';
 import SettingsPage from './pages/SettingsPage';
+import HouseholdsPage from './pages/HouseholdsPage';
 import { useAuth } from './hooks/useAuth';
 import './App.css';
 
@@ -35,6 +36,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ListDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/households"
+          element={
+            <ProtectedRoute>
+              <HouseholdsPage />
             </ProtectedRoute>
           }
         />

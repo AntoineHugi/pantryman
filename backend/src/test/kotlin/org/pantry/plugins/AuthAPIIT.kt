@@ -38,6 +38,9 @@ import org.pantry.repositories.UserRepository
 import org.pantry.services.AuthService
 import org.pantry.services.EmailService
 import org.pantry.postgres.tables.UserTable
+import org.pantry.postgres.tables.HouseholdMemberTable
+import org.pantry.postgres.tables.HouseholdTable
+import org.pantry.repositories.HouseholdRepository
 
 class RoutingAuthApiIT : KoinTest {
 
@@ -51,10 +54,12 @@ class RoutingAuthApiIT : KoinTest {
         modules(
             module {
                 single { UserRepository() }
+                single { HouseholdRepository() }
                 single {
                     AuthService(
                         get(),
                         emailService,
+                        get(),
                         "test-secret-key-for-testing-only",
                         "test-issuer",
                         "test-audience"
@@ -72,7 +77,7 @@ class RoutingAuthApiIT : KoinTest {
             driver = "org.h2.Driver"
         )
         transaction {
-            SchemaUtils.create(UserTable)
+            SchemaUtils.create(UserTable, HouseholdTable, HouseholdMemberTable)
             UserTable.deleteAll()
         }
     }

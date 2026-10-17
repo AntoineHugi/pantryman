@@ -3,11 +3,13 @@ package org.pantry.di
 import io.ktor.server.application.*
 import org.koin.dsl.module
 import org.pantry.repositories.GroceryListRepository
+import org.pantry.repositories.HouseholdRepository
 import org.pantry.repositories.ItemRepository
 import org.pantry.repositories.UserRepository
 import org.pantry.services.AuthService
 import org.pantry.services.EmailService
 import org.pantry.services.GroceryListService
+import org.pantry.services.HouseholdService
 import org.pantry.services.ItemService
 
 fun appModule(application: Application) = module {
@@ -16,6 +18,8 @@ fun appModule(application: Application) = module {
     single { GroceryListRepository(get()) }
     single { GroceryListService(get()) }
     single { UserRepository() }
+    single { HouseholdRepository() }
+    single { HouseholdService(get()) }
     single {
         EmailService(
             application.environment.config.property("resend.apiKey").getString(),
@@ -25,6 +29,7 @@ fun appModule(application: Application) = module {
     }
     single {
         AuthService(
+            get(),
             get(),
             get(),
             application.environment.config.property("jwt.secret").getString(),

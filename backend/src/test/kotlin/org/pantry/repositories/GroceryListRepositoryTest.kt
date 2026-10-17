@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.testcontainers.containers.PostgreSQLContainer
 import org.pantry.postgres.tables.GroceryListTable
+import org.pantry.postgres.tables.HouseholdMemberTable
+import org.pantry.postgres.tables.HouseholdTable
 import org.pantry.postgres.tables.ItemTable
 import org.pantry.postgres.tables.UserTable
 import java.util.UUID
@@ -26,6 +28,7 @@ class GroceryListRepositoryTest {
 
     private val itemRepo = ItemRepository()
     private val repo = GroceryListRepository(itemRepo)
+    private val householdRepo = HouseholdRepository()
 
     // Shared test user ID
     private val testUserId = UUID.randomUUID()
@@ -39,7 +42,7 @@ class GroceryListRepositoryTest {
             password = postgres.password
         )
         transaction {
-            SchemaUtils.create(UserTable, GroceryListTable, ItemTable)
+            SchemaUtils.create(UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable)
         }
         // Lists reference users, so the owner needs a real user row
         createUser(testUserId)
@@ -50,6 +53,8 @@ class GroceryListRepositoryTest {
         transaction {
             ItemTable.deleteAll()
             GroceryListTable.deleteAll()
+            HouseholdMemberTable.deleteAll()
+            HouseholdTable.deleteAll()
         }
     }
 
@@ -151,6 +156,29 @@ class GroceryListRepositoryTest {
         // List should still exist
         val stillExists = repo.getById(listId, testUserId)
         assertNotNull(stillExists)
+    }
+
+    @Test
+    fun `9 - household members can get, rename and delete shared lists`() {
+        val memberId = UUID.randomUUID().also { createUser(it) }
+        val outsiderId = UUID.randomUUID().also { createUser(it) }
+        val householdId = UUID.randomUUID()
+        householdRepo.create(householdId, "Home", "CODE2345", testUserId)
+        householdRepo.addMember(householdId, memberId)
+
+        val sharedId = UUID.randomUUID()
+        repo.create(sharedId, "Shared", testUserId, householdId)
+        repo.create(UUID.randomUUID(), "Personal", testUserId)
+
+        assertEquals(listOf("Shared"), repo.getAll(memberId).map { it.name })
+        assertTrue(repo.getAll(outsiderId).isEmpty())
+        assertNull(repo.getById(sharedId, outsiderId))
+        assertFalse(repo.update(sharedId, "Hacked", outsiderId))
+        assertFalse(repo.setHousehold(sharedId, null, memberId))
+
+        assertTrue(repo.update(sharedId, "Renamed", memberId))
+        assertTrue(repo.delete(sharedId, memberId))
+        assertNull(repo.getById(sharedId, testUserId))
     }
 
     private fun createUser(id: UUID) {

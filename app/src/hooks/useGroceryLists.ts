@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listsApi } from '../api/lists';
 import { itemsApi } from '../api/items';
-import type { CreateItemRequest, GroceryList, Item } from '../api/types';
+import type { CreateItemRequest, CreateListRequest, GroceryList, Item } from '../api/types';
 
 // Query keys. Invalidating `all` also refreshes every list detail.
 export const listKeys = {
@@ -23,7 +23,7 @@ export function useList(listId: string) {
 export function useCreateList() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => listsApi.create({ name }),
+    mutationFn: (data: CreateListRequest) => listsApi.create(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: listKeys.all }),
   });
 }
@@ -44,6 +44,17 @@ export function useRenameList(listId: string) {
   return useMutation({
     mutationFn: (name: string) => listsApi.update(listId, name),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: listKeys.all }),
+  });
+}
+
+export function useSetListHousehold(listId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (householdId: string | null) => listsApi.setHousehold(listId, householdId),
+    onSuccess: (list) => {
+      queryClient.setQueryData(listKeys.detail(listId), list);
+      return queryClient.invalidateQueries({ queryKey: listKeys.all });
+    },
   });
 }
 

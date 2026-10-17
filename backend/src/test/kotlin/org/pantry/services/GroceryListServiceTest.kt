@@ -87,12 +87,12 @@ class GroceryListServiceTest {
             emptyList(),
             testUserId.toString()
         )
-        every { repo.create(any(), name, testUserId) } returns created
+        every { repo.create(any(), name, testUserId, null) } returns created
 
         val result = service.create(name, testUserId)
 
         assertEquals(created, result)
-        verify(exactly = 1) { repo.create(any(), name, testUserId) }
+        verify(exactly = 1) { repo.create(any(), name, testUserId, null) }
     }
 
     @Test

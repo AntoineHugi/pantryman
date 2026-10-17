@@ -26,6 +26,7 @@ class GroceryListMapperTest {
         every { row[GroceryListTable.id] } returns listId
         every { row[GroceryListTable.name] } returns name
         every { row[GroceryListTable.userID] } returns testUserId
+        every { row[GroceryListTable.householdId] } returns null
         every { repo.getByListId(listId) } returns items
 
         val result = row.toGroceryList(repo)
@@ -34,6 +35,7 @@ class GroceryListMapperTest {
         assertEquals(name, result.name)
         assertEquals(items, result.items)
         assertEquals(testUserId.toString(), result.userId)
+        assertEquals(null, result.householdId)
 
         verify(exactly = 1) { repo.getByListId(listId) }
     }

@@ -21,6 +21,12 @@ export const listsApi = {
     await apiClient.patch(`/lists/${id}`, { name });
   },
 
+  // householdId null makes the list personal again
+  setHousehold: async (id: string, householdId: string | null): Promise<GroceryList> => {
+    const response = await apiClient.put<GroceryList>(`/lists/${id}/household`, { householdId });
+    return response.data;
+  },
+
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/lists/${id}`);
   },

@@ -12,6 +12,8 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.pantry.postgres.tables.ItemTable
 import org.pantry.postgres.tables.UserTable
 import org.pantry.postgres.tables.GroceryListTable
+import org.pantry.postgres.tables.HouseholdMemberTable
+import org.pantry.postgres.tables.HouseholdTable
 import java.util.UUID
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -40,7 +42,7 @@ class ItemRepositoryTest {
             password = postgres.password
         )
         transaction {
-            SchemaUtils.create(UserTable, GroceryListTable, ItemTable)
+            SchemaUtils.create(UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable)
         }
         // Lists reference users, so the owner needs a real user row
         createUser(testUserId)
