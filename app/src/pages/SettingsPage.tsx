@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BackLink from '../components/BackLink';
 import { authApi } from '../api/auth';
 import { getErrorMessage } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -72,13 +73,9 @@ function SettingsPage() {
 
   return (
     <div>
-      <div className="page-title">
-        <div className="title-with-edit">
-          <button className="btn btn-secondary back-btn-small" onClick={() => navigate(-1)}>
-            ← Back
-          </button>
-          <h1>Settings</h1>
-        </div>
+      <BackLink />
+      <div className="page-header">
+        <h1>Settings</h1>
       </div>
 
       <div className="section">
@@ -89,6 +86,7 @@ function SettingsPage() {
               type="password"
               className="form-input"
               placeholder="Current password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
@@ -99,6 +97,7 @@ function SettingsPage() {
               type="password"
               className="form-input"
               placeholder="New password (min 8 characters)"
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
@@ -109,13 +108,14 @@ function SettingsPage() {
               type="password"
               className="form-input"
               placeholder="Confirm new password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
             />
           </div>
           {passwordMessage && (
-            <p className={passwordMessage.isError ? 'settings-error' : 'settings-success'}>
+            <p className={passwordMessage.isError ? 'form-error' : 'form-success'}>
               {passwordMessage.text}
             </p>
           )}
@@ -127,7 +127,7 @@ function SettingsPage() {
 
       <div className="section">
         <h2>Delete Account</h2>
-        <p className="settings-warning">
+        <p className="page-intro">
           This action is permanent and cannot be undone. All your data will be deleted.
         </p>
         {!showDeleteConfirm ? (
@@ -146,7 +146,7 @@ function SettingsPage() {
               />
             </div>
             {deleteMessage && (
-              <p className="settings-error">{deleteMessage.text}</p>
+              <p className="form-error">{deleteMessage.text}</p>
             )}
             <div className="form-actions">
               <button

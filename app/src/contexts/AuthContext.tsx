@@ -1,15 +1,14 @@
 import { useState, useEffect, type ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import type { SignupRequest, LoginRequest, SignupResponse } from '../api/types';
 import { AuthContext } from './AuthContextValue';
+import { clearQueryCache } from '../queryClient';
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(
     localStorage.getItem('authToken')
   );
@@ -37,7 +36,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = () => {
     authApi.logout();
     // Don't show the previous user's lists to whoever logs in next
-    queryClient.clear();
+    clearQueryCache();
     setToken(null);
     setUserId(null);
   };

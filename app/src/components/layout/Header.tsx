@@ -1,84 +1,75 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { MenuIcon } from '../icons';
 
 export default function Header() {
   const { isAuthenticated, logout } = useAuth();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+    if (!isMenuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
       }
     }
-
-    if (isDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsMenuOpen(false);
     }
 
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isDropdownOpen]);
+  }, [isMenuOpen]);
+
+  const go = (path: string) => {
+    setIsMenuOpen(false);
+    navigate(path);
+  };
 
   const handleLogout = () => {
     logout();
-    setIsDropdownOpen(false);
-    navigate('/login');
-  };
-
-  const handleHouseholds = () => {
-    setIsDropdownOpen(false);
-    navigate('/households');
-  };
-
-  const handleSettings = () => {
-    setIsDropdownOpen(false);
-    navigate('/settings');
+    go('/login');
   };
 
   return (
     <header className="header">
       <div className="container header-content">
-        <div className="logo">
-          <Link className="logo-link" to="/lists">
-            <span className="logo-text">Pantryman</span>
-          </Link>
-        </div>
+        <Link className="logo-link" to="/lists">
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          <span className="logo-text">Pantryman</span>
+        </Link>
         {isAuthenticated && (
-          <div className="header-menu" ref={dropdownRef}>
+          <div className="header-menu" ref={menuRef}>
             <button
-              className="settings-icon-button"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              aria-label="Settings menu"
+              className="menu-button"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Menu"
+              aria-expanded={isMenuOpen}
+              aria-haspopup="menu"
             >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <MenuIcon />
             </button>
-            {isDropdownOpen && (
-              <div className="dropdown-menu">
-                <button className="dropdown-item" onClick={handleHouseholds}>
+            {isMenuOpen && (
+              <div className="dropdown-menu" role="menu">
+                <button className="dropdown-item" role="menuitem" onClick={() => go('/lists')}>
+                  Lists
+                </button>
+                <button className="dropdown-item" role="menuitem" onClick={() => go('/households')}>
                   Households
                 </button>
-                <button className="dropdown-item" onClick={handleSettings}>
+                <button className="dropdown-item" role="menuitem" onClick={() => go('/settings')}>
                   Settings
                 </button>
-                <button className="dropdown-item" onClick={handleLogout}>
-                  Logout
+                <button className="dropdown-item" role="menuitem" onClick={handleLogout}>
+                  Log out
                 </button>
               </div>
             )}

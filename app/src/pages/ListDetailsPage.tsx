@@ -1,153 +1,202 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
 import type { Item } from "../api/types";
-import AddItemForm from "../components/AddItemForm";
+import AddItemBar from "../components/AddItemBar";
+import BackLink from "../components/BackLink";
+import ItemRow from "../components/ItemRow";
+import SlowServerNotice from "../components/SlowServerNotice";
+import { ChevronIcon, PencilIcon } from "../components/icons";
 import { useAuth } from "../hooks/useAuth";
-import { useDeleteItem, useList, useRenameList, useSetListHousehold, useUpdateItem } from "../hooks/useGroceryLists";
+import { useFeedback } from "../hooks/useFeedback";
+import {
+  useDeleteItem,
+  useDeleteItems,
+  useDeleteList,
+  useList,
+  useRenameList,
+  useRestoreItems,
+  useSetListHousehold,
+  useUpdateItem,
+} from "../hooks/useGroceryLists";
 import { useHouseholds } from "../hooks/useHouseholds";
 import '../App.css';
 
 function ListDetailsPage() {
   const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [showForm, setShowForm] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editedItemName, setEditedItemName] = useState("");
-  const [editedItemQuantity, setEditedItemQuantity] = useState(1);
+  const [showChecked, setShowChecked] = useState(true);
 
-  const { data: list, error } = useList(id);
+  const { data: list, error, isPending } = useList(id);
   const updateItem = useUpdateItem(id);
   const deleteItem = useDeleteItem(id);
+  const deleteItems = useDeleteItems(id);
+  const restoreItems = useRestoreItems(id);
   const renameList = useRenameList(id);
   const setListHousehold = useSetListHousehold(id);
+  const deleteList = useDeleteList();
   const { data: households = [] } = useHouseholds();
   const { userId } = useAuth();
-  // Item changes show immediately and roll back on failure; surface the last failure
-  const actionError = updateItem.error ?? deleteItem.error;
+  const { toast, confirm } = useFeedback();
 
-  const handleIncrease = (item: Item) => {
-    updateItem.mutate({ itemId: item.id, data: { quantity: item.quantity + 1 } });
-  };
+  const showError = (fallback: string) => (err: unknown) =>
+    toast({ message: getErrorMessage(err, fallback), isError: true });
 
-  const handleDecrease = (item: Item) => {
-    if (item.quantity <= 1) return;
-    updateItem.mutate({ itemId: item.id, data: { quantity: item.quantity - 1 } });
-  };
+  if (!list) {
+    return (
+      <div>
+        <BackLink />
+        {error ? (
+          <p className="form-error">{getErrorMessage(error, "Could not load grocery list")}</p>
+        ) : (
+          <>
+            <div className="loading">Loading…</div>
+            <SlowServerNotice active={isPending} />
+          </>
+        )}
+      </div>
+    );
+  }
 
-  const handleDelete = (itemId: string) => {
-    deleteItem.mutate(itemId);
-  };
+  // Ticked items move to the bottom, so the list shrinks as you shop
+  const toBuy = list.items.filter((item) => !item.isChecked);
+  const checked = list.items.filter((item) => item.isChecked);
 
   const toggleCheck = (item: Item) => {
-    updateItem.mutate({ itemId: item.id, data: { isChecked: !item.isChecked } });
+    updateItem.mutate(
+      { itemId: item.id, data: { isChecked: !item.isChecked } },
+      { onError: showError("Could not update the item") }
+    );
   };
 
-  const handleEditItem = (item: Item) => {
-    setEditingItemId(item.id);
-    setEditedItemName(item.name);
-    setEditedItemQuantity(item.quantity);
-  };
-
-  const handleSaveItem = (itemId: string) => {
-    if (!editedItemName.trim()) return;
-
-    updateItem.mutate({ itemId, data: { name: editedItemName, quantity: editedItemQuantity } });
+  const handleSaveItem = (item: Item, changes: { name: string; quantity: number }) => {
     setEditingItemId(null);
+    if (changes.name === item.name && changes.quantity === item.quantity) return;
+    updateItem.mutate({ itemId: item.id, data: changes }, { onError: showError("Could not update the item") });
   };
 
-  const handleCancelEditItem = () => {
-    setEditingItemId(null);
-    setEditedItemName("");
-    setEditedItemQuantity(1);
-  };
-
-  const handleEditName = () => {
-    if (list) {
-      setEditedName(list.name);
-      setIsEditingName(true);
-    }
-  };
-
-  const handleSaveName = () => {
-    if (!editedName.trim()) return;
-
-    renameList.mutate(editedName, {
-      onSuccess: () => setIsEditingName(false),
-      onError: (err) => alert(getErrorMessage(err, "Could not update list name")),
+  // Deleting is immediate, with Undo in the toast instead of a confirmation
+  const undoToast = (message: string, items: Item[]) =>
+    toast({
+      message,
+      actionLabel: "Undo",
+      onAction: () => restoreItems.mutate(items, { onError: showError("Could not put the items back") }),
     });
+
+  const handleDeleteItem = (item: Item) => {
+    setEditingItemId(null);
+    deleteItem.mutate(item.id, { onError: showError("Could not delete the item") });
+    undoToast(`Deleted ${item.name}`, [item]);
   };
 
-  const handleCancelEdit = () => {
-    setIsEditingName(false);
-    setEditedName("");
+  const handleClearChecked = () => {
+    deleteItems.mutate(
+      checked.map((item) => item.id),
+      { onError: showError("Could not clear the ticked items") }
+    );
+    undoToast(`Cleared ${checked.length} ticked ${checked.length === 1 ? "item" : "items"}`, checked);
+  };
+
+  const handleSaveName = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editedName.trim()) return;
+    renameList.mutate(editedName.trim(), {
+      onSuccess: () => setIsEditingName(false),
+      onError: showError("Could not rename the list"),
+    });
   };
 
   const handleShareChange = (householdId: string) => {
     setListHousehold.mutate(householdId || null, {
-      onError: (err) => alert(getErrorMessage(err, "Could not change who the list is shared with")),
+      onError: showError("Could not change who the list is shared with"),
     });
   };
 
-  if (error) return <p style={{ color: "red" }}>{getErrorMessage(error, "Could not load grocery list")}</p>;
-  if (!list) return <div className="loading">Loading...</div>;
+  const handleDeleteList = async () => {
+    const confirmed = await confirm({
+      title: "Delete list?",
+      message: list.householdId
+        ? `"${list.name}" and its items will be deleted for everyone in the household.`
+        : `"${list.name}" and its items will be deleted.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
+    // Leave first, so this page doesn't refetch the deleted list. mutateAsync, because
+    // mutate's callbacks don't run once the page is gone.
+    navigate("/lists", { replace: true });
+    deleteList
+      .mutateAsync(list.id)
+      .then(() => toast({ message: `Deleted "${list.name}"` }), showError("Could not delete the list"));
+  };
+
+  const renderItem = (item: Item) => (
+    <ItemRow
+      key={item.id}
+      item={item}
+      isEditing={editingItemId === item.id}
+      onToggle={() => toggleCheck(item)}
+      onEdit={() => setEditingItemId(item.id)}
+      onSave={(changes) => handleSaveItem(item, changes)}
+      onCancel={() => setEditingItemId(null)}
+      onDelete={() => handleDeleteItem(item)}
+    />
+  );
 
   return (
     <div>
-      <div className="page-title">
+      <BackLink />
+
+      <div className="list-header">
         {isEditingName ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
-            <button className="btn btn-secondary back-btn-small" onClick={() => navigate(-1)}>
-              ← Back
+          <form className="inline-edit-form" onSubmit={handleSaveName}>
+            <input
+              type="text"
+              className="form-input"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              aria-label="List name"
+              maxLength={100}
+              autoFocus
+            />
+            <button type="submit" className="btn btn-primary btn-small" disabled={renameList.isPending || !editedName.trim()}>
+              Save
             </button>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <input
-                type="text"
-                className="form-input"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                autoFocus
-                style={{ maxWidth: '400px' }}
-              />
-              <button className="btn btn-primary btn-small" onClick={handleSaveName}>
-                Save
-              </button>
-              <button className="btn btn-secondary btn-small" onClick={handleCancelEdit}>
-                Cancel
-              </button>
-            </div>
-          </div>
+            <button type="button" className="btn btn-secondary btn-small" onClick={() => setIsEditingName(false)}>
+              Cancel
+            </button>
+          </form>
         ) : (
-          <div className="title-with-edit">
-            <button className="btn btn-secondary back-btn-small" onClick={() => navigate(-1)}>
-              ← Back
+          <div className="title-row">
+            <h1>{list.name}</h1>
+            <button
+              className="icon-btn"
+              onClick={() => {
+                setEditedName(list.name);
+                setIsEditingName(true);
+              }}
+              aria-label="Rename list"
+            >
+              <PencilIcon />
             </button>
-            <div className="title-row">
-              <h1>{list.name}</h1>
-              <button className="edit-btn" onClick={handleEditName} title="Edit list name">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
-            </div>
           </div>
+        )}
+        {list.items.length > 0 && (
+          <p className="muted list-progress">
+            {toBuy.length === 0
+              ? "All done"
+              : checked.length === 0
+                ? `${toBuy.length} ${toBuy.length === 1 ? "item" : "items"}`
+                : `${toBuy.length} of ${list.items.length} left`}
+          </p>
         )}
       </div>
 
       {list.userId === userId && households.length > 0 ? (
-        <div className="form-group list-sharing">
+        <div className="list-sharing">
           <select
             className="form-input"
             value={list.householdId ?? ""}
@@ -171,124 +220,48 @@ function ListDetailsPage() {
         )
       )}
 
-      <div className="section">
-        <div className="section-header">
-          <h2>Items</h2>
+      {error && <p className="offline-banner">Can't reach the server. Showing the last saved copy.</p>}
+
+      <AddItemBar list={list} />
+
+      {list.items.length === 0 ? (
+        <div className="empty-state">
+          <p>Nothing on this list yet. Add the first item above.</p>
         </div>
+      ) : (
+        <>
+          {toBuy.length > 0 ? (
+            <ul className="items-list">{toBuy.map(renderItem)}</ul>
+          ) : (
+            <p className="empty-state">Everything is ticked off.</p>
+          )}
 
-        {actionError && (
-          <p style={{ color: "red" }}>{getErrorMessage(actionError, "Could not update item")}</p>
-        )}
+          {checked.length > 0 && (
+            <section className="checked-section">
+              <div className="checked-header">
+                <button
+                  className="checked-toggle"
+                  onClick={() => setShowChecked(!showChecked)}
+                  aria-expanded={showChecked}
+                >
+                  <ChevronIcon open={showChecked} />
+                  In the cart ({checked.length})
+                </button>
+                <button className="btn btn-secondary btn-small" onClick={handleClearChecked}>
+                  Clear ticked items
+                </button>
+              </div>
+              {showChecked && <ul className="items-list">{checked.map(renderItem)}</ul>}
+            </section>
+          )}
+        </>
+      )}
 
-        {list.items.length === 0 && !showForm && (
-          <div className="empty-state">
-            <p>No items in this list yet</p>
-          </div>
-        )}
-
-        {list.items.length > 0 && (
-          <ul className="items-list">
-            {list.items.map((item) => (
-              <li key={item.id} className="item-card">
-                {editingItemId === item.id ? (
-                  <div className="item-edit-form">
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={editedItemName}
-                        onChange={(e) => setEditedItemName(e.target.value)}
-                        autoFocus
-                        style={{ flex: 1, minWidth: '100px' }}
-                      />
-                      <input
-                        type="number"
-                        className="form-input"
-                        min={1}
-                        value={editedItemQuantity}
-                        onChange={(e) => setEditedItemQuantity(Number(e.target.value))}
-                        style={{ width: '60px' }}
-                      />
-                      <button className="btn btn-primary btn-small" onClick={() => handleSaveItem(item.id)}>
-                        Save
-                      </button>
-                      <button className="btn btn-secondary btn-small" onClick={handleCancelEditItem}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="item-content">
-                    <div
-                      className="item-info"
-                      onClick={() => toggleCheck(item)}
-                      style={{
-                        textDecoration: item.isChecked ? 'line-through' : 'none',
-                        opacity: item.isChecked ? 0.6 : 1,
-                      }}
-                    >
-                      <span className="item-name">{item.name}</span>
-                      <span className="item-quantity">x{item.quantity}</span>
-                    </div>
-                    <div className="item-actions">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditItem(item);
-                        }}
-                        title="Edit item"
-                      >
-                        ✎
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleIncrease(item);
-                        }}
-                        title="Increase quantity"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDecrease(item);
-                        }}
-                        title="Decrease quantity"
-                      >
-                        −
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(item.id);
-                        }}
-                        title="Delete item"
-                        style={{ color: '#dc3545' }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {!showForm && (
-        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-          + Add Item
+      <div className="page-footer-actions">
+        <button className="btn btn-danger-outline btn-small" onClick={handleDeleteList} disabled={deleteList.isPending}>
+          Delete list
         </button>
-      )}
-      {showForm && (
-        <AddItemForm
-          listId={list.id}
-          onItemAdded={() => setShowForm(false)}
-          onCancel={() => setShowForm(false)}
-        />
-      )}
+      </div>
     </div>
   );
 }

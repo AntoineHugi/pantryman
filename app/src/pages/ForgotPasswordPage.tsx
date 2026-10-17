@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../api/auth';
 import { getErrorMessage } from '../api/client';
+import SlowServerNotice from '../components/SlowServerNotice';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -24,8 +25,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="auth-page">
-      <div className="card" style={{ maxWidth: '400px', margin: '3rem auto' }}>
-        <h1 style={{ marginTop: 0 }}>Forgot password</h1>
+      <div className="card auth-card">
+        <h1>Forgot password</h1>
         {sentMessage ? (
           <>
             <p>{sentMessage}</p>
@@ -33,7 +34,7 @@ export default function ForgotPasswordPage() {
           </>
         ) : (
           <form onSubmit={handleSubmit}>
-            <p style={{ marginTop: 0 }}>Enter your email and we'll send you a link to choose a new password.</p>
+            <p>Enter your email and we'll send you a link to choose a new password.</p>
             <div className="form-group">
               <input
                 type="email"
@@ -45,13 +46,14 @@ export default function ForgotPasswordPage() {
                 autoFocus
               />
             </div>
-            {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isSending}>
+            {error && <p className="form-error">{error}</p>}
+            <button type="submit" className="btn btn-primary btn-block" disabled={isSending}>
               {isSending ? 'Sending…' : 'Send reset link'}
             </button>
+            <SlowServerNotice active={isSending} />
           </form>
         )}
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: 0 }}>
+        <p className="auth-footer">
           <Link to="/login">Back to login</Link>
         </p>
       </div>

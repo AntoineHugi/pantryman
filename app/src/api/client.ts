@@ -1,5 +1,6 @@
 import axios from 'axios';
 import API_BASE_URL from '../config';
+import { clearQueryCache } from '../queryClient';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -24,6 +25,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('userId');
+      clearQueryCache();
       window.location.href = '/login';
     }
     return Promise.reject(error);

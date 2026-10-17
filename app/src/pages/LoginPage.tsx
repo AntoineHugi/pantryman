@@ -3,12 +3,14 @@ import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-do
 import { isAxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
 import { getErrorMessage } from '../api/client';
+import SlowServerNotice from '../components/SlowServerNotice';
 import { isInviteLink, safeRedirectPath, withNext } from '../utils/redirectPath';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -22,6 +24,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
 
     try {
       await login({ email, password });
@@ -32,25 +35,26 @@ export default function LoginPage() {
       } else {
         setError(getErrorMessage(err, 'Login failed'));
       }
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="auth-page">
-      <div className="card" style={{ maxWidth: '400px', margin: '3rem auto' }}>
-        <h1 style={{ marginTop: 0 }}>Login</h1>
+      <div className="card auth-card">
+        <h1>Log in</h1>
         {verified && (
-          <p style={{ color: 'green', marginBottom: '1rem' }}>
+          <p className="form-success">
             Email verified! You can now log in.
           </p>
         )}
         {passwordReset && (
-          <p style={{ color: 'green', marginBottom: '1rem' }}>
+          <p className="form-success">
             Password changed. You can now log in with your new password.
           </p>
         )}
         {!verified && isInviteLink(next) && (
-          <p style={{ marginBottom: '1rem' }}>
+          <p>
             You've been invited to a household. Log in, or sign up if you're new, to join it.
           </p>
         )}
@@ -60,6 +64,7 @@ export default function LoginPage() {
               type="email"
               className="form-input"
               placeholder="Email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -71,20 +76,22 @@ export default function LoginPage() {
               type="password"
               className="form-input"
               placeholder="Password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
-          {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-            Login
+          {error && <p className="form-error">{error}</p>}
+          <button type="submit" className="btn btn-primary btn-block" disabled={isSubmitting}>
+            {isSubmitting ? 'Logging in…' : 'Log in'}
           </button>
+          <SlowServerNotice active={isSubmitting} />
         </form>
-        <p style={{ textAlign: 'center', marginTop: '1rem', marginBottom: 0 }}>
+        <p className="auth-footer">
           <Link to="/forgot-password">Forgot your password?</Link>
         </p>
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: 0 }}>
+        <p className="auth-footer">
           Don't have an account? <Link to={withNext('/signup', next)}>Sign up</Link>
         </p>
       </div>

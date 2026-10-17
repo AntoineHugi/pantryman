@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { getErrorMessage } from '../api/client';
+import SlowServerNotice from '../components/SlowServerNotice';
 import { safeRedirectPath, withNext } from '../utils/redirectPath';
 
 // Verification emails link here (/verify?token=...&next=...). On a phone with the app
@@ -39,14 +40,13 @@ export default function VerifyEmailPage() {
 
   return (
     <div className="auth-page">
-      <div className="card" style={{ maxWidth: '400px', margin: '3rem auto' }}>
-        <h1 style={{ marginTop: 0 }}>Email verification</h1>
+      <div className="card auth-card">
+        <h1>Email verification</h1>
         <p>{message}</p>
+        <SlowServerNotice active={verification.isFetching} />
         {failed && (
-          <Link to={withNext('/login', next)}>
-            <button className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-              Go to Login
-            </button>
+          <Link className="btn btn-primary btn-block" to={withNext('/login', next)}>
+            Go to login
           </Link>
         )}
       </div>

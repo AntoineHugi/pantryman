@@ -1,82 +1,76 @@
+/* Base styles. The app has one light theme (yellow background), so form controls
+   must not switch to dark mode with the phone's setting. */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --bg: #FFCE5C;
+  --surface: #EFF6FA;
+  --surface-strong: #FFFFFF;
+  --text: #252422;
+  --text-muted: #5f5d58;
+  --border: rgba(37, 36, 34, 0.12);
+  --danger: #c8283a;
+  --success: #1e7b37;
+  --shadow: 0 1px 3px rgba(37, 36, 34, 0.1);
+  --radius: 10px;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: var(--text);
+  background-color: var(--bg);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  display: block;
-  flex-direction: column;
   background-color: var(--bg);
   color: var(--text);
-  -webkit-font-smoothing: antialiased;
 }
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
 }
 
 h2 {
-  font-size: 2em;
-  line-height: 1.1;
+  font-size: 1.25rem;
+  line-height: 1.25;
+  margin: 0 0 0.75rem;
 }
 
-line {
-  font-size: 2.2em;
-  line-height: 1.1;
-  color: black;
+a {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  font-size: 1rem;
+  color: inherit;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+button:disabled {
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(37, 36, 34, 0.45);
+  outline-offset: 2px;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '../api/auth';
 import { getErrorMessage } from '../api/client';
+import SlowServerNotice from '../components/SlowServerNotice';
 
 // Password reset emails link here (/reset-password?token=...)
 export default function ResetPasswordPage() {
@@ -33,8 +34,8 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <div className="auth-page">
-        <div className="card" style={{ maxWidth: '400px', margin: '3rem auto' }}>
-          <h1 style={{ marginTop: 0 }}>Reset password</h1>
+        <div className="card auth-card">
+          <h1>Reset password</h1>
           <p>This reset link is incomplete.</p>
           <Link to="/forgot-password">Ask for a new link</Link>
         </div>
@@ -44,8 +45,8 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="auth-page">
-      <div className="card" style={{ maxWidth: '400px', margin: '3rem auto' }}>
-        <h1 style={{ marginTop: 0 }}>Choose a new password</h1>
+      <div className="card auth-card">
+        <h1>Choose a new password</h1>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <input
@@ -70,12 +71,13 @@ export default function ResetPasswordPage() {
               minLength={8}
             />
           </div>
-          {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isSaving}>
+          {error && <p className="form-error">{error}</p>}
+          <button type="submit" className="btn btn-primary btn-block" disabled={isSaving}>
             {isSaving ? 'Saving…' : 'Set new password'}
           </button>
+          <SlowServerNotice active={isSaving} />
         </form>
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: 0 }}>
+        <p className="auth-footer">
           <Link to="/forgot-password">Ask for a new link</Link>
         </p>
       </div>

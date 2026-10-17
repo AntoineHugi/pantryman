@@ -1,26 +1,23 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { AuthProvider } from './contexts/AuthContext';
+import { FeedbackProvider } from './contexts/FeedbackContext';
+import { persistOptions, queryClient } from './queryClient';
 import './index.css'
 import App from './App.tsx'
 
-// Refetches when the window regains focus, so changes from other devices show up
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 10_000, retry: 1 },
-  },
-});
-
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <FeedbackProvider>
+            <App />
+          </FeedbackProvider>
         </AuthProvider>
       </BrowserRouter>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </StrictMode>
 );
