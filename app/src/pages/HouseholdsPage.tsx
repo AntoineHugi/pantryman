@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
 import type { Household } from "../api/types";
 import { useAuth } from "../hooks/useAuth";
+import { publicAppUrl, shareText } from "../native";
 import {
   useCreateHousehold,
   useHouseholds,
@@ -15,7 +16,7 @@ import {
 import "../App.css";
 
 function inviteLink(code: string) {
-  return `${window.location.origin}/households?join=${code}`;
+  return `${publicAppUrl}/households?join=${code}`;
 }
 
 function HouseholdCard({ household }: { household: Household }) {
@@ -54,9 +55,7 @@ function HouseholdCard({ household }: { household: Household }) {
     const text = `Join "${household.name}" on Pantryman: ${link}`;
     try {
       // The share sheet on phones (WhatsApp, SMS, ...), the clipboard elsewhere
-      if (navigator.share) {
-        await navigator.share({ title: "Pantryman invite", text });
-      } else {
+      if (!(await shareText("Pantryman invite", text))) {
         await navigator.clipboard.writeText(link);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);

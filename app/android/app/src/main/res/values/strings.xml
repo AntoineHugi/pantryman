@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pantryman</string>
+    <string name="title_activity_main">Pantryman</string>
+    <string name="package_name">de.pantryman.app</string>
+    <string name="custom_url_scheme">de.pantryman.app</string>
+</resources>

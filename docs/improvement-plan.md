@@ -74,7 +74,7 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
 - [x] Step 1: bug fixes, `CLAUDE.md`, monorepo, CI (2026-10-14)
 - [x] Redeploy on Render + Neon (2026-10-15)
 - [x] Step 2 (2026-10-14), except Tailwind, moved to step 3
-- [ ] Step 3: households done (2026-10-17), invite link through signup fixed (2026-10-17). Hand test, Capacitor APK and UX pass to do.
+- [ ] Step 3: households done (2026-10-17), invite link through signup fixed (2026-10-17), Capacitor project + APK workflow set up (2026-10-17). To do: GitHub secrets + first APK build, hand test on a phone, UX pass.
 - [ ] Step 4
 - [ ] Step 5
 
@@ -88,3 +88,6 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
 - **2026-10-15 — Rate limit on Render.** Keying on `X-Forwarded-For` did nothing behind Render's rotating proxies; now keyed on `CF-Connecting-IP`.
 - **2026-10-17 — Households.** `V9`: households, members, invite codes, owner, `grocery_lists.household_id`. Lists can be shared with a household; ownership passes on when members leave or delete their account. Households page, lists grouped by household, "Shared with" selector. 112 backend tests pass.
 - **2026-10-17 — Invite links through signup.** A logged-out user opening an invite link now keeps it through login ↔ signup (`?next=`), the verification email (`/auth/verify?token=…&next=…`) and the login redirect. `SignupRequest` and `ResendVerificationRequest` gain an optional `redirectPath` (additive). Only in-app paths are accepted (`isSafeRedirectPath` on the backend, `safeRedirectPath` in the frontend), so the links can't redirect to another site. 118 backend tests pass.
+- **2026-10-17 — Capacitor Android app.** `app/android/` (Capacitor 8, `de.pantryman.app`), bundled assets built against the production API (`npm run build:android`, `.env.android`). CORS allows `https://localhost` (`plugins/Cors.kt`, new `CorsIT`). Invite links use the public URL in the app and go through the native share sheet. App Links for pantryman.de `/households` and `/login` (`assetlinks.json` with the release key's fingerprint), handled by `useNativeAppEvents`, which also refetches when the app returns to the foreground. Release signing from env vars; `.github/workflows/android.yml` builds the signed APK (manual run or `v*` tag → GitHub release), versionCode = run number. Not yet built or run on a device: there's no Android SDK locally, so the first build is in CI.
+
+  To check on the first device test: status bar / navigation bar padding (`SystemBars.insetsHandling: 'native'`), the back button, invite and verification links opening the app (App Links only verify once `assetlinks.json` is live on pantryman.de), and the share sheet. Known limit: the verification link goes through the backend's `/auth/verify` redirect; if Chrome doesn't hand that redirect to the app, the user verifies in the browser and then logs in in the app (the invite code is then lost again). A fix would be a frontend `/verify` page that the email links to directly.

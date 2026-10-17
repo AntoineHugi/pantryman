@@ -8,6 +8,7 @@ import ListDetailsPage from './pages/ListDetailsPage';
 import SettingsPage from './pages/SettingsPage';
 import HouseholdsPage from './pages/HouseholdsPage';
 import { useAuth } from './hooks/useAuth';
+import { useNativeAppEvents } from './hooks/useNativeAppEvents';
 import './App.css';
 
 function HomePage() {
@@ -16,6 +17,8 @@ function HomePage() {
 }
 
 function App() {
+  useNativeAppEvents();
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
