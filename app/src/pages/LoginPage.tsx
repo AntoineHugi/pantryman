@@ -17,6 +17,7 @@ export default function LoginPage() {
   const next = safeRedirectPath((location.state as { from?: string } | null)?.from ?? searchParams.get('next'));
   const redirectTo = next ?? '/lists';
   const verified = searchParams.get('verified') === 'true';
+  const passwordReset = searchParams.get('reset') === 'true';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +42,11 @@ export default function LoginPage() {
         {verified && (
           <p style={{ color: 'green', marginBottom: '1rem' }}>
             Email verified! You can now log in.
+          </p>
+        )}
+        {passwordReset && (
+          <p style={{ color: 'green', marginBottom: '1rem' }}>
+            Password changed. You can now log in with your new password.
           </p>
         )}
         {!verified && isInviteLink(next) && (
@@ -75,6 +81,9 @@ export default function LoginPage() {
             Login
           </button>
         </form>
+        <p style={{ textAlign: 'center', marginTop: '1rem', marginBottom: 0 }}>
+          <Link to="/forgot-password">Forgot your password?</Link>
+        </p>
         <p style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: 0 }}>
           Don't have an account? <Link to={withNext('/signup', next)}>Sign up</Link>
         </p>

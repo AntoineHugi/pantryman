@@ -34,6 +34,7 @@
                 <data android:pathPrefix="/households" />
                 <data android:pathPrefix="/login" />
                 <data android:pathPrefix="/verify" />
+                <data android:pathPrefix="/reset-password" />
             </intent-filter>
 
         </activity>

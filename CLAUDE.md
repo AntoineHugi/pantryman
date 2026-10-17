@@ -59,7 +59,7 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 - Flyway migrations run automatically at backend startup.
 - Android app (`de.pantryman.app`): the `Android APK` workflow (`.github/workflows/android.yml`) builds a signed APK when run by hand or on a `v*` tag (tags also create a GitHub release). It needs the secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. The keystore lives outside the repo (`~/.pantryman-android/`). **Never commit it, and don't lose it:** every APK must be signed with the same key to install over the previous one, and `app/public/.well-known/assetlinks.json` holds its SHA-256 fingerprint for App Links.
 - The APK bundles the frontend, so frontend changes reach phones only with a new APK; backend changes reach them immediately. Keep API changes additive (see JSON below).
-- In the app, the page runs at `https://localhost`. Links meant for other people must use `publicAppUrl` (`src/native.ts`), not `window.location.origin`. pantryman.de links under `/households`, `/login` and `/verify` open the app (App Links, `AndroidManifest.xml`) and are routed by `hooks/useNativeAppEvents.ts`.
+- In the app, the page runs at `https://localhost`. Links meant for other people must use `publicAppUrl` (`src/native.ts`), not `window.location.origin`. pantryman.de links under `/households`, `/login`, `/verify` and `/reset-password` open the app (App Links, `AndroidManifest.xml`) and are routed by `hooks/useNativeAppEvents.ts`.
 
 ## Conventions and gotchas
 
@@ -70,5 +70,6 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 - **Emails** are stored trimmed and lowercase, and looked up case-insensitively.
 - **JSON:** the server ignores unknown keys, so older installed clients keep working when request fields are removed. Prefer additive API changes, because mobile clients will lag behind deploys.
 - **Errors:** routes don't catch exceptions. They throw, and `plugins/StatusPages.kt` maps them (`IllegalArgumentException` → 400, `ForbiddenException` → 403, Ktor `NotFoundException` → 404, …). Parse path IDs with `call.uuidParameter("listId")`. Responses use `{"error": "message"}`. The frontend reads them with `getErrorMessage()` in `api/client.ts`. The axios 401 interceptor logs the user out, except on `/auth/*` endpoints, which return 401 for wrong credentials.
-- **Auth endpoints** (signup, login, resend-verification) are rate limited per client IP (`plugins/RateLimiting.kt`).
+- **Auth endpoints** (signup, login, resend-verification, forgot-password, reset-password) are rate limited per client IP (`plugins/RateLimiting.kt`).
+- **Password reset:** `POST /auth/forgot-password` emails a link to `/reset-password?token=...` and answers the same whether or not the account exists. Only a SHA-256 hash of the token is stored (`users.password_reset_token_hash`), valid 1 hour, single use, latest link only. A successful reset also verifies the email. Existing logins (JWTs) stay valid after a reset.
 - Ktor YAML env syntax is `${VAR}` (required) or `${VAR:default}`.

@@ -21,6 +21,15 @@ export const authApi = {
     await apiClient.post('/auth/resend-verification', { email, redirectPath });
   },
 
+  forgotPassword: async (email: string): Promise<string> => {
+    const response = await apiClient.post<{ message: string }>('/auth/forgot-password', { email });
+    return response.data.message;
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<void> => {
+    await apiClient.post('/auth/reset-password', { token, newPassword });
+  },
+
   changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
     await apiClient.put('/auth/password', { currentPassword, newPassword });
   },

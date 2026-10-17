@@ -15,11 +15,13 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.Runs
 import org.koin.core.component.inject
 import org.koin.dsl.module
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.deleteAll
+import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.koin.test.KoinTest
@@ -35,6 +37,8 @@ import org.pantry.models.SignupRequest
 import org.pantry.models.SignupResponse
 import org.pantry.models.LoginRequest
 import org.pantry.models.AuthResponse
+import org.pantry.models.ForgotPasswordRequest
+import org.pantry.models.ResetPasswordRequest
 import org.pantry.models.VerifyEmailRequest
 import org.pantry.models.VerifyEmailResponse
 import org.pantry.repositories.UserRepository
@@ -49,6 +53,10 @@ class RoutingAuthApiIT : KoinTest {
 
     private val emailService = mockk<EmailService>().also {
         coEvery { it.sendVerificationEmail(any(), any(), any()) } just Runs
+    }
+    // The token from the last password reset email
+    private val resetToken = slot<String>().also { token ->
+        coEvery { emailService.sendPasswordResetEmail(any(), capture(token)) } just Runs
     }
 
     @JvmField
@@ -190,7 +198,7 @@ class RoutingAuthApiIT : KoinTest {
 
         assertEquals(HttpStatusCode.BadRequest, secondResponse.status)
         val errorResponse: Map<String, String> = secondResponse.body()
-        assertEquals("Registration Failed", errorResponse["error"])
+        assertEquals("An account with this email already exists. Log in, or reset your password if you forgot it.", errorResponse["error"])
     }
 
     @Test
@@ -288,6 +296,91 @@ class RoutingAuthApiIT : KoinTest {
         }
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    private suspend fun ApplicationTestBuilder.forgotPassword(email: String) =
+        jsonClient.post("/auth/forgot-password") {
+            contentType(ContentType.Application.Json)
+            setBody(ForgotPasswordRequest(email))
+        }
+
+    private suspend fun ApplicationTestBuilder.resetPassword(token: String, newPassword: String) =
+        jsonClient.post("/auth/reset-password") {
+            contentType(ContentType.Application.Json)
+            setBody(ResetPasswordRequest(token, newPassword))
+        }
+
+    @Test
+    fun `password reset sets a new password, verifies the email, and works only once`() = testApplication {
+        setupTestApplication()
+        // Never verified: following the reset link proves the address, so login works afterwards
+        signup("forgetful@example.com", "oldpassword123")
+
+        assertEquals(HttpStatusCode.OK, forgotPassword("Forgetful@Example.com").status)
+        val token = resetToken.captured
+
+        assertEquals(HttpStatusCode.OK, resetPassword(token, "newpassword123").status)
+
+        assertEquals(HttpStatusCode.OK, login("forgetful@example.com", "newpassword123").status)
+        assertEquals(HttpStatusCode.Unauthorized, login("forgetful@example.com", "oldpassword123").status)
+
+        val reused = resetPassword(token, "anotherpassword123")
+        assertEquals(HttpStatusCode.BadRequest, reused.status)
+        assertEquals(HttpStatusCode.OK, login("forgetful@example.com", "newpassword123").status)
+    }
+
+    @Test
+    fun `forgot password answers the same for an unknown email and sends nothing`() = testApplication {
+        setupTestApplication()
+        signup("known@example.com")
+
+        val known: Map<String, String> = forgotPassword("known@example.com").body()
+        val unknown = forgotPassword("unknown@example.com")
+
+        assertEquals(HttpStatusCode.OK, unknown.status)
+        assertEquals(known, unknown.body<Map<String, String>>())
+        coVerify(exactly = 1) { emailService.sendPasswordResetEmail(any(), any()) }
+    }
+
+    @Test
+    fun `only the latest reset link works`() = testApplication {
+        setupTestApplication()
+        signup("twice@example.com")
+
+        forgotPassword("twice@example.com")
+        val first = resetToken.captured
+        forgotPassword("twice@example.com")
+        val second = resetToken.captured
+
+        assertEquals(HttpStatusCode.BadRequest, resetPassword(first, "newpassword123").status)
+        assertEquals(HttpStatusCode.OK, resetPassword(second, "newpassword123").status)
+    }
+
+    @Test
+    fun `an expired reset link is rejected`() = testApplication {
+        setupTestApplication()
+        signup("late@example.com")
+        forgotPassword("late@example.com")
+        transaction {
+            UserTable.update({ UserTable.email eq "late@example.com" }) {
+                it[passwordResetExpiresAt] = java.time.Instant.now().minusSeconds(60)
+            }
+        }
+
+        val response = resetPassword(resetToken.captured, "newpassword123")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals(
+            "This reset link is invalid or has expired. Ask for a new one.",
+            response.body<Map<String, String>>()["error"]
+        )
+    }
+
+    @Test
+    fun `reset with an unknown token is rejected`() = testApplication {
+        setupTestApplication()
+
+        assertEquals(HttpStatusCode.BadRequest, resetPassword("made-up-token", "newpassword123").status)
     }
 
     @Test

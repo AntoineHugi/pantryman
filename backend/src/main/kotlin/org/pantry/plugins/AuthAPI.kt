@@ -12,8 +12,10 @@ import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 import org.pantry.models.ChangePasswordRequest
 import org.pantry.models.DeleteAccountRequest
+import org.pantry.models.ForgotPasswordRequest
 import org.pantry.models.LoginRequest
 import org.pantry.models.ResendVerificationRequest
+import org.pantry.models.ResetPasswordRequest
 import org.pantry.models.SignupRequest
 import org.pantry.models.VerifyEmailRequest
 import org.pantry.models.VerifyEmailResponse
@@ -49,6 +51,22 @@ fun Application.authAPI() {
                     val request = call.receive<ResendVerificationRequest>()
                     authService.resendVerification(request.email, request.redirectPath)
                     call.respond(HttpStatusCode.OK, mapOf("message" to "Verification email sent."))
+                }
+
+                post("/forgot-password") {
+                    val request = call.receive<ForgotPasswordRequest>()
+                    authService.requestPasswordReset(request.email)
+                    // Same answer whether or not the account exists
+                    call.respond(
+                        HttpStatusCode.OK,
+                        mapOf("message" to "If an account exists for this email, we've sent a link to reset the password.")
+                    )
+                }
+
+                post("/reset-password") {
+                    val request = call.receive<ResetPasswordRequest>()
+                    authService.resetPassword(request.token, request.newPassword)
+                    call.respond(HttpStatusCode.OK, mapOf("message" to "Password updated. You can now log in."))
                 }
             }
 

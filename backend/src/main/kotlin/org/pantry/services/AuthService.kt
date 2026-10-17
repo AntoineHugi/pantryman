@@ -7,6 +7,11 @@ import org.pantry.models.AuthResponse
 import org.pantry.models.SignupResponse
 import org.pantry.repositories.HouseholdRepository
 import org.pantry.repositories.UserRepository
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.time.Clock
+import java.time.Duration
+import java.util.Base64
 import java.util.Date
 import java.util.UUID
 
@@ -16,7 +21,8 @@ class AuthService(
     private val householdRepository: HouseholdRepository,
     private val jwtSecret: String,
     private val jwtIssuer: String,
-    private val jwtAudience: String
+    private val jwtAudience: String,
+    private val clock: Clock = Clock.systemUTC()
 ) {
 
     suspend fun signup(rawEmail: String, password: String, redirectPath: String? = null): SignupResponse {
@@ -33,7 +39,7 @@ class AuthService(
 
         // Check if user already exists
         if (userRepository.getByEmail(email) != null) {
-            throw IllegalArgumentException("Registration Failed")
+            throw IllegalArgumentException("An account with this email already exists. Log in, or reset your password if you forgot it.")
         }
 
         // Hash password
@@ -99,6 +105,32 @@ class AuthService(
         emailService.sendVerificationEmail(email, newToken, redirectPath)
     }
 
+    /**
+     * Emails a link to reset the password. Does nothing for an unknown email, and the route answers the
+     * same either way, so the form doesn't tell strangers who has an account.
+     */
+    suspend fun requestPasswordReset(rawEmail: String) {
+        val user = userRepository.getByEmail(normalizeEmail(rawEmail)) ?: return
+
+        val token = newResetToken()
+        userRepository.setPasswordResetToken(
+            UUID.fromString(user.id),
+            sha256(token),
+            clock.instant().plus(PASSWORD_RESET_VALIDITY)
+        )
+        emailService.sendPasswordResetEmail(user.email, token)
+    }
+
+    fun resetPassword(token: String, newPassword: String) {
+        if (newPassword.length < 8) {
+            throw IllegalArgumentException("Password must be at least 8 characters")
+        }
+        val newHash = BCrypt.hashpw(newPassword, BCrypt.gensalt(10))
+        if (!userRepository.resetPassword(sha256(token), newHash, clock.instant())) {
+            throw IllegalArgumentException("This reset link is invalid or has expired. Ask for a new one.")
+        }
+    }
+
     fun changePassword(userId: UUID, currentPassword: String, newPassword: String) {
         val user = userRepository.getById(userId)
             ?: throw IllegalArgumentException("User not found")
@@ -129,6 +161,20 @@ class AuthService(
     }
 
     private fun normalizeEmail(email: String): String = email.trim().lowercase()
+
+    // 32 random bytes, URL-safe so it fits in the emailed link as is
+    private fun newResetToken(): String {
+        val bytes = ByteArray(32).also { secureRandom.nextBytes(it) }
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    private fun sha256(value: String): String =
+        MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+
+    companion object {
+        val PASSWORD_RESET_VALIDITY: Duration = Duration.ofHours(1)
+        private val secureRandom = SecureRandom()
+    }
 
     private fun requireSafeRedirectPath(path: String?) {
         if (path != null && !isSafeRedirectPath(path)) {

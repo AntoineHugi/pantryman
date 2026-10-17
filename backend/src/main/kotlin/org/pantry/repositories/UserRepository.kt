@@ -6,6 +6,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.pantry.models.User
 import org.pantry.postgres.tables.UserTable
 import org.pantry.mappers.toUser
+import java.time.Instant
 import java.util.UUID
 
 class UserRepository {
@@ -72,6 +73,35 @@ class UserRepository {
             UserTable.update({ UserTable.id eq userId }) {
                 it[UserTable.passwordHash] = passwordHash
             }
+        }
+    }
+
+    // Replaces any earlier pending reset, so only the latest emailed link works
+    fun setPasswordResetToken(userId: UUID, tokenHash: String, expiresAt: Instant) {
+        transaction {
+            UserTable.update({ UserTable.id eq userId }) {
+                it[passwordResetTokenHash] = tokenHash
+                it[passwordResetExpiresAt] = expiresAt
+            }
+        }
+    }
+
+    /**
+     * Sets the new password if [tokenHash] matches a reset that hasn't expired, and uses the reset up.
+     * One UPDATE, so a link can't be used twice. Following the emailed link proves the user owns the
+     * address, so this also verifies the email. Returns false for an unknown, used or expired token.
+     */
+    fun resetPassword(tokenHash: String, passwordHash: String, now: Instant): Boolean {
+        return transaction {
+            UserTable.update({
+                (UserTable.passwordResetTokenHash eq tokenHash) and (UserTable.passwordResetExpiresAt greater now)
+            }) {
+                it[UserTable.passwordHash] = passwordHash
+                it[passwordResetTokenHash] = null
+                it[passwordResetExpiresAt] = null
+                it[isVerified] = true
+                it[verificationToken] = null
+            } == 1
         }
     }
 

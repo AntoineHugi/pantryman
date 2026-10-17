@@ -10,6 +10,10 @@ import org.mindrot.jbcrypt.BCrypt
 import org.pantry.models.User
 import org.pantry.repositories.HouseholdRepository
 import org.pantry.repositories.UserRepository
+import java.security.MessageDigest
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
 
 class AuthServiceTest {
@@ -20,7 +24,10 @@ class AuthServiceTest {
     private val jwtSecret = "test-secret"
     private val jwtIssuer = "test-issuer"
     private val jwtAudience = "test-audience"
-    private val service = AuthService(repo, emailService, householdRepo, jwtSecret, jwtIssuer, jwtAudience)
+    private val now = Instant.parse("2026-10-18T12:00:00Z")
+    private val service = AuthService(
+        repo, emailService, householdRepo, jwtSecret, jwtIssuer, jwtAudience, Clock.fixed(now, ZoneOffset.UTC)
+    )
 
     @AfterEach
     fun tearDown() {
@@ -113,7 +120,7 @@ class AuthServiceTest {
             runBlocking { service.signup(email, "password123") }
         }
 
-        assertEquals("Registration Failed", exception.message)
+        assertEquals("An account with this email already exists. Log in, or reset your password if you forgot it.", exception.message)
         verify(exactly = 0) { repo.create(any(), any(), any(), any()) }
     }
 
@@ -232,5 +239,61 @@ class AuthServiceTest {
         }
         assertEquals("Invalid redirect path", exception.message)
         verify(exactly = 0) { repo.create(any(), any(), any(), any()) }
+    }
+
+    private fun sha256(value: String) =
+        MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+
+    @Test
+    fun `requestPasswordReset does nothing for an unknown email`() = runBlocking {
+        every { repo.getByEmail("nobody@example.com") } returns null
+
+        service.requestPasswordReset("nobody@example.com")
+
+        verify(exactly = 0) { repo.setPasswordResetToken(any(), any(), any()) }
+        coVerify(exactly = 0) { emailService.sendPasswordResetEmail(any(), any()) }
+    }
+
+    @Test
+    fun `requestPasswordReset stores only a hash of the emailed token, valid for one hour`() = runBlocking {
+        val userId = UUID.randomUUID()
+        every { repo.getByEmail("user@example.com") } returns User(userId.toString(), "user@example.com", "hash")
+        val storedHash = slot<String>()
+        every { repo.setPasswordResetToken(userId, capture(storedHash), now.plusSeconds(3600)) } just Runs
+        val emailedToken = slot<String>()
+        coEvery { emailService.sendPasswordResetEmail("user@example.com", capture(emailedToken)) } just Runs
+
+        service.requestPasswordReset("  User@Example.com ")
+
+        assertNotEquals(emailedToken.captured, storedHash.captured)
+        assertEquals(sha256(emailedToken.captured), storedHash.captured)
+        assertTrue(emailedToken.captured.length >= 43)
+    }
+
+    @Test
+    fun `resetPassword rejects a short password before touching the database`() {
+        val exception = assertThrows<IllegalArgumentException> { service.resetPassword("token", "short") }
+
+        assertEquals("Password must be at least 8 characters", exception.message)
+        verify(exactly = 0) { repo.resetPassword(any(), any(), any()) }
+    }
+
+    @Test
+    fun `resetPassword looks up the token by its hash and fails for an unknown or expired one`() {
+        every { repo.resetPassword(sha256("token"), any(), now) } returns false
+
+        val exception = assertThrows<IllegalArgumentException> { service.resetPassword("token", "newpassword123") }
+
+        assertEquals("This reset link is invalid or has expired. Ask for a new one.", exception.message)
+    }
+
+    @Test
+    fun `resetPassword stores a bcrypt hash of the new password`() {
+        val newHash = slot<String>()
+        every { repo.resetPassword(sha256("token"), capture(newHash), now) } returns true
+
+        service.resetPassword("token", "newpassword123")
+
+        assertTrue(BCrypt.checkpw("newpassword123", newHash.captured))
     }
 }
