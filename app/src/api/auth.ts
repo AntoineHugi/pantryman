@@ -12,6 +12,11 @@ export const authApi = {
     return response.data;
   },
 
+  verifyEmail: async (token: string): Promise<boolean> => {
+    const response = await apiClient.post<{ verified: boolean }>('/auth/verify', { token });
+    return response.data.verified;
+  },
+
   resendVerification: async (email: string, redirectPath?: string): Promise<void> => {
     await apiClient.post('/auth/resend-verification', { email, redirectPath });
   },

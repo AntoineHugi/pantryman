@@ -36,6 +36,16 @@ data class ResendVerificationRequest(
 )
 
 @Serializable
+data class VerifyEmailRequest(
+    val token: String
+)
+
+@Serializable
+data class VerifyEmailResponse(
+    val verified: Boolean
+)
+
+@Serializable
 data class ChangePasswordRequest(
     val currentPassword: String,
     val newPassword: String

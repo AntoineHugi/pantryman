@@ -3,6 +3,7 @@ import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignUpPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import ListsPage from './pages/ListsPage';
 import ListDetailsPage from './pages/ListDetailsPage';
 import SettingsPage from './pages/SettingsPage';
@@ -23,6 +24,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/verify" element={<VerifyEmailPage />} />
 
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />

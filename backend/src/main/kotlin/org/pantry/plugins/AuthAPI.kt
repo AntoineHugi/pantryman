@@ -15,6 +15,8 @@ import org.pantry.models.DeleteAccountRequest
 import org.pantry.models.LoginRequest
 import org.pantry.models.ResendVerificationRequest
 import org.pantry.models.SignupRequest
+import org.pantry.models.VerifyEmailRequest
+import org.pantry.models.VerifyEmailResponse
 import org.pantry.services.AuthService
 import org.pantry.services.isSafeRedirectPath
 import java.util.UUID
@@ -50,6 +52,15 @@ fun Application.authAPI() {
                 }
             }
 
+            // Called by the frontend's /verify page, which verification emails link to
+            post("/verify") {
+                val request = call.receive<VerifyEmailRequest>()
+                val token = runCatching { UUID.fromString(request.token) }.getOrNull()
+                    ?: throw BadRequestException("Invalid token")
+                call.respond(VerifyEmailResponse(authService.verifyEmail(token)))
+            }
+
+            // Emails sent before 2026-10-17 link here directly; keep it so those links still work
             get("/verify") {
                 val token = call.request.queryParameters["token"]
                     ?.let { runCatching { UUID.fromString(it) }.getOrNull() }

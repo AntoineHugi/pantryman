@@ -33,6 +33,7 @@
                 <data android:host="www.pantryman.de" />
                 <data android:pathPrefix="/households" />
                 <data android:pathPrefix="/login" />
+                <data android:pathPrefix="/verify" />
             </intent-filter>
 
         </activity>

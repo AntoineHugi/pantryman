@@ -35,6 +35,8 @@ import org.pantry.models.SignupRequest
 import org.pantry.models.SignupResponse
 import org.pantry.models.LoginRequest
 import org.pantry.models.AuthResponse
+import org.pantry.models.VerifyEmailRequest
+import org.pantry.models.VerifyEmailResponse
 import org.pantry.repositories.UserRepository
 import org.pantry.services.AuthService
 import org.pantry.services.EmailService
@@ -254,6 +256,38 @@ class RoutingAuthApiIT : KoinTest {
 
         assertEquals("http://frontend.test/login?verified=true", response.headers[HttpHeaders.Location])
         assertEquals(true, userRepo.getByEmail("unsafe@example.com")?.isVerified)
+    }
+
+    @Test
+    fun `POST verify marks user verified once`() = testApplication {
+        setupTestApplication()
+        signup("post-verify@example.com")
+        val token = checkNotNull(userRepo.getByEmail("post-verify@example.com")?.verificationToken)
+
+        suspend fun verify() = jsonClient.post("/auth/verify") {
+            contentType(ContentType.Application.Json)
+            setBody(VerifyEmailRequest(token))
+        }
+
+        val first = verify()
+        assertEquals(HttpStatusCode.OK, first.status)
+        assertEquals(true, first.body<VerifyEmailResponse>().verified)
+        assertEquals(true, userRepo.getByEmail("post-verify@example.com")?.isVerified)
+
+        // The token is used up
+        assertEquals(false, verify().body<VerifyEmailResponse>().verified)
+    }
+
+    @Test
+    fun `POST verify returns 400 for a malformed token`() = testApplication {
+        setupTestApplication()
+
+        val response = jsonClient.post("/auth/verify") {
+            contentType(ContentType.Application.Json)
+            setBody(VerifyEmailRequest("not-a-uuid"))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
     @Test

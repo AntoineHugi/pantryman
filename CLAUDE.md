@@ -52,14 +52,14 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 
 ## Deployment
 
-- Backend: **Render** web service `pantryman` (free instance, sleeps when idle; the first request after that takes ~50 s), https://pantryman.onrender.com. Render builds `backend/Dockerfile` with **Root Directory = `backend`**, and auto-deploys on every push to `main`. Env vars are set in Render's dashboard: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `VERIFICATION_BASE_URL` (the Render URL), `FRONTEND_BASE_URL`. A gitignored `backend/.env.production` holds a copy for reference. Never commit it.
+- Backend: **Render** web service `pantryman` (free instance, sleeps when idle; the first request after that takes ~50 s), https://pantryman.onrender.com. Render builds `backend/Dockerfile` with **Root Directory = `backend`**, and auto-deploys on every push to `main`. Env vars are set in Render's dashboard: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FRONTEND_BASE_URL` (verification emails link to its `/verify` page). `VERIFICATION_BASE_URL` is no longer used. A gitignored `backend/.env.production` holds a copy for reference. Never commit it.
 - Database: **Neon** project `pantryman-db`, branch `production` (Frankfurt, free plan). `DB_URL` uses the direct host, not `-pooler`, because Flyway needs a session connection. Neon archives the branch after inactivity; the first query restores it.
 - Render sits behind Cloudflare. The login rate limiter keys on `CF-Connecting-IP` (`plugins/RateLimiting.kt`). Revisit that if the backend moves off Cloudflare.
 - Frontend: Vercel (`app/vercel.json` SPA rewrite), served at pantryman.de. The Vercel project's root directory must be `app`. Vercel deploys from this repo (the old `pantryman-web` repo is archived). The CORS allow-list is in `plugins/Cors.kt`.
 - Flyway migrations run automatically at backend startup.
 - Android app (`de.pantryman.app`): the `Android APK` workflow (`.github/workflows/android.yml`) builds a signed APK when run by hand or on a `v*` tag (tags also create a GitHub release). It needs the secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. The keystore lives outside the repo (`~/.pantryman-android/`). **Never commit it, and don't lose it:** every APK must be signed with the same key to install over the previous one, and `app/public/.well-known/assetlinks.json` holds its SHA-256 fingerprint for App Links.
 - The APK bundles the frontend, so frontend changes reach phones only with a new APK; backend changes reach them immediately. Keep API changes additive (see JSON below).
-- In the app, the page runs at `https://localhost`. Links meant for other people must use `publicAppUrl` (`src/native.ts`), not `window.location.origin`. pantryman.de links under `/households` and `/login` open the app (App Links, `AndroidManifest.xml`) and are routed by `hooks/useNativeAppEvents.ts`.
+- In the app, the page runs at `https://localhost`. Links meant for other people must use `publicAppUrl` (`src/native.ts`), not `window.location.origin`. pantryman.de links under `/households`, `/login` and `/verify` open the app (App Links, `AndroidManifest.xml`) and are routed by `hooks/useNativeAppEvents.ts`.
 
 ## Conventions and gotchas
 

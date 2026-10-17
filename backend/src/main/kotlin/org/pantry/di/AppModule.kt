@@ -24,7 +24,7 @@ fun appModule(application: Application) = module {
         EmailService(
             application.environment.config.property("resend.apiKey").getString(),
             application.environment.config.property("resend.fromEmail").getString(),
-            application.environment.config.property("resend.verificationBaseUrl").getString()
+            application.environment.config.property("resend.frontendBaseUrl").getString()
         )
     }
     single {

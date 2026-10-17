@@ -23,7 +23,7 @@ data class ResendEmailRequest(
 class EmailService(
     private val apiKey: String,
     private val fromEmail: String,
-    private val verificationBaseUrl: String
+    private val frontendBaseUrl: String
 ) {
     private val logger = LoggerFactory.getLogger(EmailService::class.java)
 
@@ -36,7 +36,9 @@ class EmailService(
     // redirectPath must already be checked with isSafeRedirectPath
     suspend fun sendVerificationEmail(to: String, token: UUID, redirectPath: String?) {
         val nextParam = redirectPath?.let { "&next=${it.encodeURLParameter()}" } ?: ""
-        val verificationLink = "$verificationBaseUrl/auth/verify?token=$token$nextParam"
+        // Links to the frontend's /verify page rather than the backend, so that on a phone with the
+        // app installed the link opens the app directly (Android App Links don't follow redirects reliably)
+        val verificationLink = "$frontendBaseUrl/verify?token=$token$nextParam"
 
         try {
             val response = client.post("https://api.resend.com/emails") {
