@@ -4,7 +4,7 @@ import { getErrorMessage } from "../api/client";
 import type { Item } from "../api/types";
 import AddItemBar from "../components/AddItemBar";
 import BackLink from "../components/BackLink";
-import ItemRow from "../components/ItemRow";
+import ItemRow, { type ItemChanges } from "../components/ItemRow";
 import SlowServerNotice from "../components/SlowServerNotice";
 import { ChevronIcon, PencilIcon } from "../components/icons";
 import { useAuth } from "../hooks/useAuth";
@@ -72,9 +72,9 @@ function ListDetailsPage() {
     );
   };
 
-  const handleSaveItem = (item: Item, changes: { name: string; quantity: number }) => {
+  const handleSaveItem = (item: Item, changes: ItemChanges) => {
     setEditingItemId(null);
-    if (changes.name === item.name && changes.quantity === item.quantity) return;
+    if (changes.name === item.name && changes.quantity === item.quantity && changes.unit === (item.unit ?? null)) return;
     updateItem.mutate({ itemId: item.id, data: changes }, { onError: showError("Could not update the item") });
   };
 

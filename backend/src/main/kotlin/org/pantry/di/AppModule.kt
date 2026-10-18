@@ -12,6 +12,7 @@ import org.pantry.services.EmailService
 import org.pantry.services.GroceryListService
 import org.pantry.services.HouseholdService
 import org.pantry.services.ItemService
+import org.pantry.services.RecipeListService
 import org.pantry.services.RecipeService
 
 fun appModule(application: Application) = module {
@@ -24,6 +25,7 @@ fun appModule(application: Application) = module {
     single { HouseholdService(get()) }
     single { RecipeRepository() }
     single { RecipeService(get()) }
+    single { RecipeListService(get(), get()) }
     single {
         EmailService(
             application.environment.config.property("resend.apiKey").getString(),

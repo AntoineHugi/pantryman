@@ -257,7 +257,7 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val newItem = CreateItemRequest(name = "milk", quantity = 1)
+        val newItem = CreateItemRequest(name = "milk", quantity = 1.0)
         val postItemResponse = jsonClient.post("/lists/${createdList.id}/items") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
@@ -288,7 +288,7 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val newItem = CreateItemRequest(name = "milk", quantity = 1)
+        val newItem = CreateItemRequest(name = "milk", quantity = 1.0)
         val postItemResponse = jsonClient.post("/lists/${createdList.id}/items") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
@@ -322,7 +322,7 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val newItem = CreateItemRequest(name = "milk", quantity = 1)
+        val newItem = CreateItemRequest(name = "milk", quantity = 1.0)
         val postItemResponse = jsonClient.post("/lists/${createdList.id}/items") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
@@ -356,7 +356,7 @@ class RoutingGroceriesApiIT : KoinTest {
         assertNotNull(createdList)
         assertEquals(newList.name, createdList.name)
 
-        val newItem = CreateItemRequest(name = "milk", quantity = 1)
+        val newItem = CreateItemRequest(name = "milk", quantity = 1.0)
         val postItemResponse = jsonClient.post("/lists/${createdList.id}/items") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
@@ -430,7 +430,7 @@ class RoutingGroceriesApiIT : KoinTest {
         val ownList = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
         val otherUserId = UUID.randomUUID().also { createUser(it) }
         val otherList = groceryListRepo.create(UUID.randomUUID(), "Theirs", otherUserId)
-        val otherItem = itemRepo.create(UUID.randomUUID(), UUID.fromString(otherList.id), "their milk", 1, false)
+        val otherItem = itemRepo.create(UUID.randomUUID(), UUID.fromString(otherList.id), "their milk", 1.0, false)
 
         val patchResponse = jsonClient.patch("/lists/${ownList.id}/items/${otherItem.id}") {
             contentType(ContentType.Application.Json)
@@ -504,7 +504,7 @@ class RoutingGroceriesApiIT : KoinTest {
         setupTestApplication()
 
         val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
-        val item = itemRepo.create(UUID.randomUUID(), UUID.fromString(list.id), "milk", 1, false)
+        val item = itemRepo.create(UUID.randomUUID(), UUID.fromString(list.id), "milk", 1.0, false)
         val response = jsonClient.patch("/lists/${list.id}/items/${item.id}") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $testToken")
@@ -521,9 +521,9 @@ class RoutingGroceriesApiIT : KoinTest {
 
         val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
         val listId = UUID.fromString(list.id)
-        val milk = itemRepo.create(UUID.randomUUID(), listId, "milk", 1, false)
-        val eggs = itemRepo.create(UUID.randomUUID(), listId, "eggs", 1, false)
-        itemRepo.create(UUID.randomUUID(), listId, "bread", 1, false)
+        val milk = itemRepo.create(UUID.randomUUID(), listId, "milk", 1.0, false)
+        val eggs = itemRepo.create(UUID.randomUUID(), listId, "eggs", 1.0, false)
+        itemRepo.create(UUID.randomUUID(), listId, "bread", 1.0, false)
 
         val response = jsonClient.post("/lists/${list.id}/items/bulk-delete") {
             contentType(ContentType.Application.Json)
@@ -544,7 +544,7 @@ class RoutingGroceriesApiIT : KoinTest {
         val ownList = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
         val otherUserId = UUID.randomUUID().also { createUser(it) }
         val otherList = groceryListRepo.create(UUID.randomUUID(), "Theirs", otherUserId)
-        val otherItem = itemRepo.create(UUID.randomUUID(), UUID.fromString(otherList.id), "their milk", 1, false)
+        val otherItem = itemRepo.create(UUID.randomUUID(), UUID.fromString(otherList.id), "their milk", 1.0, false)
 
         // Their item through my list: not on my list, so nothing is deleted
         val viaOwnList = jsonClient.post("/lists/${ownList.id}/items/bulk-delete") {

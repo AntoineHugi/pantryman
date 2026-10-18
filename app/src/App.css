@@ -944,3 +944,55 @@ textarea.form-input {
   margin: 0 0 0.5rem;
   padding-left: 1.25rem;
 }
+
+/* Add a recipe to a list */
+.add-to-list-button {
+  margin-top: 1rem;
+}
+
+.ingredient-checklist {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.ingredient-checklist label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.ingredient-checklist input[type='checkbox'] {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--text);
+}
+
+/* Items: name with "for Bolognese" under it, and units in the editor */
+.item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.item-source {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.unit-select {
+  width: auto;
+  min-width: 5.5rem;
+}
+
+.item-editor-actions .btn-danger-outline {
+  margin-left: auto;
+}

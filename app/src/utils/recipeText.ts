@@ -42,6 +42,34 @@ function parseAmount(text: string): number | null {
 const AMOUNT = String.raw`(\d+\s+\d+/\d+|\d+/\d+|\d*[¼½¾⅓⅔]|\d+(?:[.,]\d+)?)`;
 
 /**
+ * The amount and unit at the start of "200 g flour", "200g flour", "2 eggs", "a pinch of salt",
+ * "1 1/2 cups of milk". Null when the text doesn't start with an amount.
+ */
+export function parseQuantityPrefix(text: string): { amount: number; unit: string | null; rest: string } | null {
+  // "200g flour": a unit attached to the amount
+  const attached = text.match(new RegExp(`^${AMOUNT}([a-zA-Z]+)\\s+(.+)$`));
+  const spaced = text.match(new RegExp(`^${AMOUNT}\\s+(.+)$`));
+  const article = text.match(/^an?\s+(\S+)\s+(.+)$/i);
+  let result: { amount: number | null; unit: string | null; rest: string } | null = null;
+  if (attached && toUnit(attached[2])) {
+    result = { amount: parseAmount(attached[1]), unit: toUnit(attached[2]), rest: attached[3] };
+  } else if (spaced) {
+    const [first, ...rest] = spaced[2].split(' ');
+    const unit = rest.length > 0 ? toUnit(first) : null;
+    result = { amount: parseAmount(spaced[1]), unit, rest: unit ? rest.join(' ') : spaced[2] };
+  } else if (article && toUnit(article[1])) {
+    // "a pinch of salt", "a can of tomatoes"
+    result = { amount: 1, unit: toUnit(article[1]), rest: article[2] };
+  }
+  if (!result || result.amount === null) return null;
+  return {
+    amount: result.amount,
+    unit: result.unit,
+    rest: result.unit ? result.rest.replace(/^of\s+/i, '') : result.rest,
+  };
+}
+
+/**
  * One line of the ingredients box → an ingredient. "200 g flour, sifted", "200g flour",
  * "2 eggs", "a pinch of salt", "1 1/2 cups milk", "salt (optional)".
  * The note is whatever follows the first comma.
@@ -57,31 +85,10 @@ export function parseIngredientLine(line: string, section: string | null): Recip
     text = optionalMatch[1];
   }
 
-  let amount: number | null = null;
-  let unit: string | null = null;
-  // "200g flour": a unit attached to the amount
-  const attached = text.match(new RegExp(`^${AMOUNT}([a-zA-Z]+)\\s+(.+)$`));
-  const spaced = text.match(new RegExp(`^${AMOUNT}\\s+(.+)$`));
-  const article = text.match(/^an?\s+(\S+)\s+(.+)$/i);
-  if (attached && toUnit(attached[2])) {
-    amount = parseAmount(attached[1]);
-    unit = toUnit(attached[2]);
-    text = attached[3];
-  } else if (spaced) {
-    amount = parseAmount(spaced[1]);
-    text = spaced[2];
-    const [first, ...rest] = text.split(' ');
-    if (rest.length > 0 && toUnit(first)) {
-      unit = toUnit(first);
-      text = rest.join(' ');
-    }
-  } else if (article && toUnit(article[1])) {
-    // "a pinch of salt", "a can of tomatoes"
-    amount = 1;
-    unit = toUnit(article[1]);
-    text = article[2];
-  }
-  if (unit) text = text.replace(/^of\s+/i, '');
+  const quantity = parseQuantityPrefix(text);
+  const amount = quantity?.amount ?? null;
+  const unit = quantity?.unit ?? null;
+  if (quantity) text = quantity.rest;
 
   const comma = text.indexOf(',');
   const name = (comma >= 0 ? text.slice(0, comma) : text).trim();
@@ -154,7 +161,7 @@ const PLURAL_UNITS: Record<string, string> = {
 };
 
 // "500 g", "2", "1 tbsp", "2 cloves", "" (no amount)
-export function formatQuantity(ingredient: RecipeIngredient, scale = 1): string {
+export function formatQuantity(ingredient: { amount: number | null; unit?: string | null }, scale = 1): string {
   if (ingredient.amount == null) return ingredient.unit ?? '';
   const scaled = ingredient.amount * scale;
   const amount = formatAmount(scaled);

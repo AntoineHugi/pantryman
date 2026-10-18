@@ -8,6 +8,8 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
+import org.pantry.models.AddRecipeToListRequest
+import org.pantry.models.AddRecipeToListResponse
 import org.pantry.models.BulkDeleteItemsRequest
 import org.pantry.models.BulkDeleteItemsResponse
 import org.pantry.models.CreateGroceryListRequest
@@ -18,12 +20,14 @@ import org.pantry.models.UpdateListHouseholdRequest
 import org.pantry.services.GroceryListService
 import org.pantry.services.HouseholdService
 import org.pantry.services.ItemService
+import org.pantry.services.RecipeListService
 import java.util.UUID
 
 fun Application.groceriesApi() {
     val groceryListService by inject <GroceryListService>()
     val itemService by inject <ItemService>()
     val householdService by inject <HouseholdService>()
+    val recipeListService by inject <RecipeListService>()
 
     // Item routes act on a list the caller must have access to (owner or household member);
     // returns the list ID.
@@ -92,6 +96,25 @@ fun Application.groceriesApi() {
                         }
                         call.respond(HttpStatusCode.NoContent)
                     }
+                    // Adds a recipe's ingredients, scaled and merged into the items already there
+                    post("/recipes") {
+                        val listId = call.requireAccessibleListId()
+                        val request = call.receive<AddRecipeToListRequest>()
+                        val recipeId = try {
+                            UUID.fromString(request.recipeId)
+                        } catch (e: IllegalArgumentException) {
+                            throw IllegalArgumentException("Invalid recipeId")
+                        }
+                        val result = recipeListService.addRecipe(listId, recipeId, request.servings, request.ingredientIndexes)
+                            ?: throw NotFoundException("Recipe not found")
+                        call.respond(
+                            AddRecipeToListResponse(
+                                list = groceryListService.getById(listId, call.userId) ?: throw NotFoundException("List not found"),
+                                added = result.newItems.size,
+                                merged = result.changes.size
+                            )
+                        )
+                    }
                     route("/items") {
                         post {
                             val listId = call.requireAccessibleListId()
@@ -99,7 +122,8 @@ fun Application.groceriesApi() {
                             val item = itemService.create(
                                 listId = listId,
                                 name = request.name,
-                                quantity = request.quantity
+                                quantity = request.quantity,
+                                unit = request.unit
                             )
                             call.respond(HttpStatusCode.Created, item)
                         }

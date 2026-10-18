@@ -6,6 +6,7 @@ import SlowServerNotice from "../components/SlowServerNotice";
 import { useAuth } from "../hooks/useAuth";
 import { useFeedback } from "../hooks/useFeedback";
 import { useDeleteRecipe, useRecipe } from "../hooks/useRecipes";
+import AddRecipeToList from "../components/AddRecipeToList";
 import { formatMinutes, formatQuantity, groupBySection } from "../utils/recipeText";
 import "../App.css";
 
@@ -20,6 +21,8 @@ function RecipePage() {
   const deleteRecipe = useDeleteRecipe();
   // null = the recipe's own servings
   const [servings, setServings] = useState<number | null>(null);
+  // Choosing which ingredients go on a grocery list
+  const [isAdding, setIsAdding] = useState(false);
 
   if (isPending) {
     return (
@@ -103,23 +106,32 @@ function RecipePage() {
             </button>
           </div>
         </div>
-        {groupBySection(recipe.ingredients).map(({ section, ingredients }) => (
-          <div key={section ?? ""}>
-            {section && <h3 className="recipe-subheading">{section}</h3>}
-            <ul className="ingredient-list">
-              {ingredients.map((ingredient, index) => (
-                <li key={index}>
-                  <span className="ingredient-quantity">{formatQuantity(ingredient, scale)}</span>
-                  <span>
-                    {ingredient.name}
-                    {ingredient.note && <span className="muted">, {ingredient.note}</span>}
-                    {ingredient.optional && <span className="muted"> (optional)</span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {isAdding ? (
+          <AddRecipeToList recipe={recipe} servings={shownServings} onDone={() => setIsAdding(false)} />
+        ) : (
+          <>
+            {groupBySection(recipe.ingredients).map(({ section, ingredients }) => (
+              <div key={section ?? ""}>
+                {section && <h3 className="recipe-subheading">{section}</h3>}
+                <ul className="ingredient-list">
+                  {ingredients.map((ingredient, index) => (
+                    <li key={index}>
+                      <span className="ingredient-quantity">{formatQuantity(ingredient, scale)}</span>
+                      <span>
+                        {ingredient.name}
+                        {ingredient.note && <span className="muted">, {ingredient.note}</span>}
+                        {ingredient.optional && <span className="muted"> (optional)</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <button className="btn btn-primary btn-block add-to-list-button" onClick={() => setIsAdding(true)}>
+              Add to grocery list
+            </button>
+          </>
+        )}
       </section>
 
       {recipe.steps.length > 0 && (

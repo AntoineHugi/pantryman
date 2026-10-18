@@ -14,12 +14,14 @@ class ItemMapperTest {
         val row = mockk<ResultRow>()
         val id = UUID.randomUUID()
         val name = "Milk"
-        val quantity = 1
+        val quantity = 1.5
         val isChecked = false
 
         every { row[ItemTable.id] } returns id
         every { row[ItemTable.name] } returns name
-        every { row[ItemTable.quantity] } returns quantity
+        every { row[ItemTable.quantity] } returns java.math.BigDecimal("1.500")
+        every { row[ItemTable.unit] } returns "kg"
+        every { row[ItemTable.fromRecipes] } returns null
         every { row[ItemTable.isChecked] } returns isChecked
 
         val result = row.toItem()
@@ -27,6 +29,7 @@ class ItemMapperTest {
         assertEquals(id.toString(), result.id)
         assertEquals(name, result.name)
         assertEquals(quantity, result.quantity)
+        assertEquals("kg", result.unit)
         assertEquals(isChecked, result.isChecked)
     }
 }

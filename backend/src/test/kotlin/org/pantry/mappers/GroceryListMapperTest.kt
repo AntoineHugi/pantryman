@@ -21,7 +21,7 @@ class GroceryListMapperTest {
         val repo = mockk<ItemRepository>()
         val listId: UUID = UUID.randomUUID()
         val name = "Weekly Shopping"
-        val items = listOf(Item(id = "1", name = "Milk", quantity = 1))
+        val items = listOf(Item(id = "1", name = "Milk", quantity = 1.0))
 
         every { row[GroceryListTable.id] } returns listId
         every { row[GroceryListTable.name] } returns name

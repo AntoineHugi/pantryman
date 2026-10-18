@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { listsApi } from '../api/lists';
 import { itemsApi } from '../api/items';
-import type { CreateItemRequest, CreateListRequest, GroceryList, Item } from '../api/types';
+import type { AddRecipeToListRequest, CreateItemRequest, CreateListRequest, GroceryList, Item } from '../api/types';
 
 // Query keys. Invalidating `all` also refreshes every list detail.
 export const listKeys = {
@@ -162,10 +162,22 @@ export function useRestoreItems(listId: string) {
     mutationFn: (items: Item[]) =>
       Promise.all(
         items.map(async (item) => {
-          const created = await itemsApi.create(listId, { name: item.name, quantity: item.quantity });
+          const created = await itemsApi.create(listId, { name: item.name, quantity: item.quantity, unit: item.unit });
           if (item.isChecked) await itemsApi.update(listId, created.id, { isChecked: true });
         })
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) }),
+  });
+}
+
+// From a recipe page: the list isn't open, so there is no optimistic update; the answer has the new list
+export function useAddRecipeToList() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ listId, data }: { listId: string; data: AddRecipeToListRequest }) => listsApi.addRecipe(listId, data),
+    onSuccess: ({ list }) => {
+      queryClient.setQueryData(listKeys.detail(list.id), list);
+      return queryClient.invalidateQueries({ queryKey: listKeys.all, exact: true });
+    },
   });
 }

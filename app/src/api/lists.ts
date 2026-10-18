@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { GroceryList, CreateListRequest } from './types';
+import type { AddRecipeToListRequest, AddRecipeToListResponse, CreateListRequest, GroceryList } from './types';
 
 export const listsApi = {
   getAll: async (): Promise<GroceryList[]> => {
@@ -24,6 +24,12 @@ export const listsApi = {
   // householdId null makes the list personal again
   setHousehold: async (id: string, householdId: string | null): Promise<GroceryList> => {
     const response = await apiClient.put<GroceryList>(`/lists/${id}/household`, { householdId });
+    return response.data;
+  },
+
+  // Scaled and merged into the items already on the list
+  addRecipe: async (id: string, data: AddRecipeToListRequest): Promise<AddRecipeToListResponse> => {
+    const response = await apiClient.post<AddRecipeToListResponse>(`/lists/${id}/recipes`, data);
     return response.data;
   },
 

@@ -7,6 +7,8 @@ import org.pantry.models.Item
 fun ResultRow.toItem() = Item(
     id = this[ItemTable.id].toString(),
     name = this[ItemTable.name],
-    quantity = this[ItemTable.quantity],
+    quantity = this[ItemTable.quantity].toDouble(),
     isChecked = this[ItemTable.isChecked],
+    unit = this[ItemTable.unit],
+    fromRecipes = this[ItemTable.fromRecipes],
 )

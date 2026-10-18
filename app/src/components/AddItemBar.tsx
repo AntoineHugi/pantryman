@@ -6,10 +6,10 @@ import { useFeedback } from '../hooks/useFeedback';
 import { useAddItem, useUpdateItem } from '../hooks/useGroceryLists';
 import { useItemSuggestions } from '../hooks/useItemSuggestions';
 import { recordItemAdded } from '../utils/itemHistory';
-import { findSameItem, parseItemInput } from '../utils/itemInput';
+import { findSameItem, formatItemQuantity, parseItemInput, type ParsedItem } from '../utils/itemInput';
 
 // Always-visible input at the top of a list. Enter adds the item and keeps the keyboard open,
-// so several items go in quickly. "3 eggs" sets the quantity.
+// so several items go in quickly. "3 eggs" or "500 g flour" sets the quantity.
 export default function AddItemBar({ list }: { list: GroceryList }) {
   const [text, setText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -24,18 +24,25 @@ export default function AddItemBar({ list }: { list: GroceryList }) {
 
   const onError = (err: unknown) => toast({ message: getErrorMessage(err, 'Could not add the item'), isError: true });
 
-  const add = (name: string, quantity: number) => {
+  const add = ({ name, quantity, unit }: ParsedItem) => {
     if (!name) return;
     const existing = findSameItem(list.items, name);
-    if (existing && !existing.isChecked) {
-      const newQuantity = existing.quantity + quantity;
+    const sameUnit = existing && (existing.unit ?? null) === unit;
+    if (existing && !existing.isChecked && sameUnit) {
+      const newQuantity = Math.round((existing.quantity + quantity) * 1000) / 1000;
       updateItem.mutate({ itemId: existing.id, data: { quantity: newQuantity } }, { onError });
-      toast({ message: `${existing.name} was already on the list. Quantity is now ${newQuantity}.` });
-    } else if (existing) {
+      toast({
+        message: `${existing.name} was already on the list. It's now ${formatItemQuantity({ quantity: newQuantity, unit }) || 1}.`,
+      });
+    } else if (existing && !existing.isChecked && !unit) {
+      // "milk" when "milk 1 l" (from a recipe) is on the list: it's there already
+      toast({ message: `${existing.name} is already on the list (${formatItemQuantity(existing)}).` });
+    } else if (existing && existing.isChecked) {
       // Ticked earlier: put it back on the list rather than adding a second one
-      updateItem.mutate({ itemId: existing.id, data: { isChecked: false, quantity } }, { onError });
+      updateItem.mutate({ itemId: existing.id, data: { isChecked: false, quantity, unit } }, { onError });
     } else {
-      addItem.mutate({ name, quantity }, { onError });
+      // New, or the same name in another unit ("2 cups flour" next to "500 g flour")
+      addItem.mutate({ name, quantity, unit }, { onError });
     }
     recordItemAdded(userId, name);
     setText('');
@@ -44,7 +51,7 @@ export default function AddItemBar({ list }: { list: GroceryList }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    add(parsed.name, parsed.quantity);
+    add(parsed);
   };
 
   // Tapping a button would otherwise take focus from the input and close the phone's keyboard
@@ -79,7 +86,7 @@ export default function AddItemBar({ list }: { list: GroceryList }) {
               type="button"
               className="suggestion-chip"
               onPointerDown={keepFocus}
-              onClick={() => add(name, parsed.name ? parsed.quantity : 1)}
+              onClick={() => add(parsed.name ? { ...parsed, name } : { name, quantity: 1, unit: null })}
             >
               + {name}
             </button>

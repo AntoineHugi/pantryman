@@ -39,8 +39,13 @@ export interface User {
   export interface Item {
     id: string;
     name: string;
+    // Can be a decimal (0.5 l)
     quantity: number;
     isChecked: boolean;
+    // null for a count ("3 eggs"). Missing from older servers' answers.
+    unit?: string | null;
+    // e.g. "Bolognese, Lasagna" when added from recipes
+    fromRecipes?: string | null;
   }
   
   export interface CreateListRequest {
@@ -65,6 +70,21 @@ export interface User {
   export interface CreateItemRequest {
     name: string;
     quantity: number;
+    unit?: string | null;
+  }
+
+  export interface AddRecipeToListRequest {
+    recipeId: string;
+    servings: number;
+    // Positions in the recipe's ingredients
+    ingredientIndexes: number[];
+  }
+
+  export interface AddRecipeToListResponse {
+    list: GroceryList;
+    // New items, and items already on the list whose quantity went up
+    added: number;
+    merged: number;
   }
   // Recipes are shared with every user; only the creator (createdBy) can edit or delete one.
   // The format is in docs/recipe-format.md.

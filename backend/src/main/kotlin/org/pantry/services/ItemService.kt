@@ -4,6 +4,7 @@ import org.pantry.models.Item
 import org.pantry.models.ItemUpdateRequest
 import org.pantry.repositories.ItemRepository
 import java.util.UUID
+import kotlin.math.roundToLong
 
 class ItemService(
     private val repo: ItemRepository
@@ -12,23 +13,37 @@ class ItemService(
 
     fun getById(listId: UUID, id: UUID): Item? = repo.getById(listId, id)
 
-    fun create(listId: UUID, name: String, quantity: Int): Item {
+    fun create(listId: UUID, name: String, quantity: Double, unit: String? = null): Item {
         val initBool = false
         val newId = UUID.randomUUID()
-        return repo.create(newId, listId, name, quantity, initBool)
+        return repo.create(newId, listId, name, validQuantity(quantity), initBool, validUnit(unit))
     }
 
     fun update(listId: UUID, id: UUID, update: ItemUpdateRequest): Boolean {
         val existing = repo.getById(listId, id) ?: return false
 
         val newName = update.name ?: existing.name
-        val newQuantity = update.quantity ?: existing.quantity
+        val newQuantity = validQuantity(update.quantity ?: existing.quantity)
+        // Missing: unchanged. "": no unit.
+        val newUnit = if (update.unit == null) existing.unit else validUnit(update.unit)
         val newIsChecked = update.isChecked ?: existing.isChecked
 
         if (newName.isBlank()) throw IllegalArgumentException("Name cannot be blank")
-        if (newQuantity < 1) throw IllegalArgumentException("Quantity cannot be below 1")
 
-        return repo.update(listId, id, newName, newQuantity, newIsChecked)
+        return repo.update(listId, id, newName, newQuantity, newIsChecked, newUnit)
+    }
+
+    // More than 0 (0.5 l is fine), kept to the 3 decimals the column stores
+    private fun validQuantity(quantity: Double): Double {
+        if (quantity.isNaN() || quantity <= 0) throw IllegalArgumentException("Quantity must be more than 0")
+        if (quantity > MAX_QUANTITY) throw IllegalArgumentException("Quantity is too large")
+        return (quantity * 1000).roundToLong() / 1000.0
+    }
+
+    private fun validUnit(unit: String?): String? {
+        val trimmed = unit?.trim()?.lowercase()?.ifEmpty { null } ?: return null
+        if (trimmed !in RecipeService.UNITS) throw IllegalArgumentException("Unknown unit \"$trimmed\"")
+        return trimmed
     }
 
     fun delete(listId: UUID, id: UUID): Boolean = repo.delete(listId, id)
@@ -51,5 +66,6 @@ class ItemService(
 
     companion object {
         const val MAX_BULK_DELETE = 500
+        const val MAX_QUANTITY = 100_000.0
     }
 }

@@ -224,7 +224,7 @@ class HouseholdAPIIT : KoinTest {
         val addItem = jsonClient.post("/lists/${list.id}/items") {
             contentType(ContentType.Application.Json)
             bearerAuth(token(bob))
-            setBody(CreateItemRequest("milk", 1))
+            setBody(CreateItemRequest("milk", 1.0))
         }
         assertEquals(HttpStatusCode.Created, addItem.status)
 

@@ -12,8 +12,10 @@ export const itemsApi = {
     return response.data;
   },
 
+  // unit: undefined leaves it as it is, null removes it (sent as "", which the server reads as "no unit")
   update: async (listId: string, itemId: string, data: Partial<Item>): Promise<void> => {
-    await apiClient.patch(`/lists/${listId}/items/${itemId}`, data);
+    const body = data.unit === null ? { ...data, unit: '' } : data;
+    await apiClient.patch(`/lists/${listId}/items/${itemId}`, body);
   },
 
   delete: async (listId: string, itemId: string): Promise<void> => {
