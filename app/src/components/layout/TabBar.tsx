@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { BookIcon, ListIcon } from '../icons';
+import { BookIcon, CalendarIcon, ListIcon } from '../icons';
 
 // The app's main sections, at the bottom of the screen where thumbs reach
 export default function TabBar() {
@@ -12,6 +12,10 @@ export default function TabBar() {
       <NavLink to="/recipes" className="tab-bar-link">
         <BookIcon />
         <span>Recipes</span>
+      </NavLink>
+      <NavLink to="/plans" className="tab-bar-link">
+        <CalendarIcon />
+        <span>Plan</span>
       </NavLink>
     </nav>
   );

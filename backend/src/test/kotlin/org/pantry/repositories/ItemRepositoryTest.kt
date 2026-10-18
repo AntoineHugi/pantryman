@@ -10,6 +10,12 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.testcontainers.containers.PostgreSQLContainer
 import org.pantry.postgres.tables.ItemTable
+import org.pantry.postgres.tables.MealPlanEntryTable
+import org.pantry.postgres.tables.MealPlanTable
+import org.pantry.postgres.tables.RecipeIngredientTable
+import org.pantry.postgres.tables.RecipeStepTable
+import org.pantry.postgres.tables.RecipeTable
+import org.pantry.postgres.tables.RecipeTagTable
 import org.pantry.postgres.tables.UserTable
 import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.postgres.tables.HouseholdMemberTable
@@ -42,7 +48,10 @@ class ItemRepositoryTest {
             password = postgres.password
         )
         transaction {
-            SchemaUtils.create(UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable)
+            SchemaUtils.create(
+                UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
+                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable
+            )
         }
         // Lists reference users, so the owner needs a real user row
         createUser(testUserId)

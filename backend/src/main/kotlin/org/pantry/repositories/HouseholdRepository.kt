@@ -8,6 +8,7 @@ import org.pantry.models.HouseholdMember
 import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.postgres.tables.HouseholdMemberTable
 import org.pantry.postgres.tables.HouseholdTable
+import org.pantry.postgres.tables.MealPlanTable
 import org.pantry.postgres.tables.UserTable
 import java.util.UUID
 
@@ -77,7 +78,7 @@ class HouseholdRepository {
 
     /**
      * Removes the user from the household, whether they leave or the owner removes them.
-     * The household keeps the lists the user shared with it: they pass to the owner, or to
+     * The household keeps the lists (and meal plans) the user shared with it: they pass to the owner, or to
      * the longest-standing remaining member if the owner is the one leaving (who then also
      * becomes the owner). When the last member leaves, the household is deleted and its
      * lists become that member's personal lists. Returns false if the user wasn't a member.
@@ -102,6 +103,9 @@ class HouseholdRepository {
             GroceryListTable.update({ GroceryListTable.householdId eq householdId }) {
                 it[GroceryListTable.householdId] = null
             }
+            MealPlanTable.update({ MealPlanTable.householdId eq householdId }) {
+                it[MealPlanTable.householdId] = null
+            }
             HouseholdTable.deleteWhere { HouseholdTable.id eq householdId }
         } else {
             if (heir != ownerId) {
@@ -113,6 +117,11 @@ class HouseholdRepository {
                 (GroceryListTable.householdId eq householdId) and (GroceryListTable.userID eq userId)
             }) {
                 it[GroceryListTable.userID] = heir
+            }
+            MealPlanTable.update({
+                (MealPlanTable.householdId eq householdId) and (MealPlanTable.userId eq userId)
+            }) {
+                it[MealPlanTable.userId] = heir
             }
         }
         true

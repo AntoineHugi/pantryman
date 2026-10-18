@@ -37,6 +37,12 @@ import org.pantry.models.CreateItemRequest
 import org.pantry.services.GroceryListService
 import org.pantry.services.ItemService
 import org.pantry.postgres.tables.ItemTable
+import org.pantry.postgres.tables.MealPlanEntryTable
+import org.pantry.postgres.tables.MealPlanTable
+import org.pantry.postgres.tables.RecipeIngredientTable
+import org.pantry.postgres.tables.RecipeStepTable
+import org.pantry.postgres.tables.RecipeTable
+import org.pantry.postgres.tables.RecipeTagTable
 import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.postgres.tables.HouseholdMemberTable
 import org.pantry.postgres.tables.HouseholdTable
@@ -74,7 +80,10 @@ class RoutingGroceriesApiIT : KoinTest {
             driver = "org.h2.Driver"
         )
         transaction {
-            SchemaUtils.create(UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable)
+            SchemaUtils.create(
+                UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
+                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable
+            )
         }
         createUser(testUserId)
     }

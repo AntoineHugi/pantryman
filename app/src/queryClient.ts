@@ -5,7 +5,7 @@ import type { GroceryList } from './api/types';
 
 const PERSIST_KEY = 'pantryman-query-cache';
 const WEEK = 7 * 24 * 60 * 60 * 1000;
-const PERSISTED_QUERIES = ['lists', 'households', 'recipes'];
+const PERSISTED_QUERIES = ['lists', 'households', 'recipes', 'meal-plans'];
 
 // Refetches when the window regains focus, so changes from other devices show up.
 // gcTime matches the persisted cache's age: queries dropped from memory aren't saved either.

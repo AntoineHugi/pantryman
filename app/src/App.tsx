@@ -14,6 +14,8 @@ import RecipesPage from './pages/RecipesPage';
 import RecipePage from './pages/RecipePage';
 import { EditRecipePage, NewRecipePage } from './pages/RecipeFormPage';
 import RecipeImportPage from './pages/RecipeImportPage';
+import MealPlansPage from './pages/MealPlansPage';
+import MealPlanPage from './pages/MealPlanPage';
 import { useAuth } from './hooks/useAuth';
 import { useNativeAppEvents } from './hooks/useNativeAppEvents';
 import './App.css';
@@ -89,6 +91,22 @@ function App() {
           element={
             <ProtectedRoute>
               <EditRecipePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plans"
+          element={
+            <ProtectedRoute>
+              <MealPlansPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plans/:id"
+          element={
+            <ProtectedRoute>
+              <MealPlanPage />
             </ProtectedRoute>
           }
         />

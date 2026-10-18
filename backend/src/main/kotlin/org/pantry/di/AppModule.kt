@@ -5,6 +5,7 @@ import org.koin.dsl.module
 import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.HouseholdRepository
 import org.pantry.repositories.ItemRepository
+import org.pantry.repositories.MealPlanRepository
 import org.pantry.repositories.RecipeRepository
 import org.pantry.repositories.UserRepository
 import org.pantry.services.AuthService
@@ -12,6 +13,7 @@ import org.pantry.services.EmailService
 import org.pantry.services.GroceryListService
 import org.pantry.services.HouseholdService
 import org.pantry.services.ItemService
+import org.pantry.services.MealPlanService
 import org.pantry.services.RecipeListService
 import org.pantry.services.RecipeService
 
@@ -26,6 +28,8 @@ fun appModule(application: Application) = module {
     single { RecipeRepository() }
     single { RecipeService(get()) }
     single { RecipeListService(get(), get()) }
+    single { MealPlanRepository() }
+    single { MealPlanService(get(), get(), get(), get()) }
     single {
         EmailService(
             application.environment.config.property("resend.apiKey").getString(),

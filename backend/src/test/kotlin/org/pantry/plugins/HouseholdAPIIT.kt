@@ -35,6 +35,12 @@ import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.postgres.tables.HouseholdMemberTable
 import org.pantry.postgres.tables.HouseholdTable
 import org.pantry.postgres.tables.ItemTable
+import org.pantry.postgres.tables.MealPlanEntryTable
+import org.pantry.postgres.tables.MealPlanTable
+import org.pantry.postgres.tables.RecipeIngredientTable
+import org.pantry.postgres.tables.RecipeStepTable
+import org.pantry.postgres.tables.RecipeTable
+import org.pantry.postgres.tables.RecipeTagTable
 import org.pantry.postgres.tables.UserTable
 import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.HouseholdRepository
@@ -81,7 +87,10 @@ class HouseholdAPIIT : KoinTest {
             driver = "org.h2.Driver"
         )
         transaction {
-            SchemaUtils.create(UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable)
+            SchemaUtils.create(
+                UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
+                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable
+            )
             ItemTable.deleteAll()
             GroceryListTable.deleteAll()
             HouseholdMemberTable.deleteAll()

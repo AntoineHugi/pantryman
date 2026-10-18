@@ -75,7 +75,7 @@ class RecipeToListAPIIT : KoinTest {
         transaction {
             SchemaUtils.create(
                 UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
-                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable
+                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable
             )
             listOf(RecipeTagTable, RecipeStepTable, RecipeIngredientTable, RecipeTable, ItemTable, GroceryListTable,
                 HouseholdMemberTable, HouseholdTable, UserTable).forEach { it.deleteAll() }

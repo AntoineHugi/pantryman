@@ -996,3 +996,170 @@ textarea.form-input {
 .item-editor-actions .btn-danger-outline {
   margin-left: auto;
 }
+
+/* Meal plans */
+.form-row.form-row-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plan-list {
+  margin-top: 1.25rem;
+}
+
+.plan-days {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card.plan-day {
+  padding: 0.75rem 1rem;
+}
+
+.plan-day.is-past {
+  opacity: 0.65;
+}
+
+.plan-day-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.plan-slot {
+  border-top: 1px solid var(--border);
+}
+
+.plan-slot-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 52px;
+  padding: 0.4rem 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+}
+
+.plan-slot-label {
+  flex: 0 0 4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.plan-slot-meal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.plan-slot-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.plan-slot-empty {
+  color: var(--text-muted);
+}
+
+/* While moving: every slot is a target */
+.plan-slot.is-target .plan-slot-button {
+  border-radius: 8px;
+  outline: 2px dashed rgba(37, 36, 34, 0.25);
+  outline-offset: -2px;
+  padding-left: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.plan-slot.is-moving .plan-slot-button {
+  background: var(--bg);
+}
+
+.plan-slot-actions {
+  padding: 0 0 0.75rem;
+}
+
+.plan-slot-actions .form-actions {
+  margin-top: 0.6rem;
+  gap: 0.5rem;
+}
+
+.move-banner {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--text);
+  color: var(--surface-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(37, 36, 34, 0.25);
+}
+
+.plan-footer {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.plan-footer p {
+  margin: 0;
+}
+
+.plan-delete {
+  align-self: center;
+  margin-top: 1rem;
+}
+
+/* Recipe picker */
+.dialog.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: min(80vh, 640px);
+}
+
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.picker-header .dialog-title {
+  margin: 0;
+}
+
+.picker-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 52px;
+  padding: 0.5rem 0.25rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-weight: 500;
+}
+
+@media (hover: hover) {
+  .picker-item:hover,
+  .plan-slot-button:hover {
+    background: rgba(37, 36, 34, 0.04);
+  }
+}

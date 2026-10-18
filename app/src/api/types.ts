@@ -136,3 +136,45 @@ export interface User {
     // Names of recipes the user had already added
     skipped: string[];
   }
+
+  // Meal plans: lunch and dinner for a few days. Like a list, personal or shared with a household.
+  export type Meal = 'lunch' | 'dinner';
+
+  export interface MealSlot {
+    // "2026-10-20"
+    date: string;
+    meal: Meal;
+  }
+
+  export interface MealPlanEntry extends MealSlot {
+    recipeId: string;
+    recipeName: string;
+    servings: number;
+  }
+
+  export interface MealPlan {
+    id: string;
+    userId: string;
+    householdId: string | null;
+    startDate: string;
+    // The last day, included
+    endDate: string;
+    days: number;
+    // Default servings for a new meal
+    people: number;
+    // The list made on confirming; null before that, or once the list is deleted
+    listId: string | null;
+    entries: MealPlanEntry[];
+  }
+
+  export interface CreateMealPlanRequest {
+    startDate: string;
+    days: number;
+    householdId: string | null;
+    people: number;
+  }
+
+  export interface ConfirmMealPlanResponse {
+    plan: MealPlan;
+    list: GroceryList;
+  }
