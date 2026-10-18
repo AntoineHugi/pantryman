@@ -5,6 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -16,6 +17,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -52,6 +54,8 @@ import org.pantry.services.GroceryListService
 import org.pantry.services.HouseholdService
 import org.pantry.services.PantryService
 import org.pantry.services.ItemService
+import java.time.Duration
+import java.time.Instant
 import java.util.Date
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -369,6 +373,63 @@ class HouseholdAPIIT : KoinTest {
         assertNotEquals(household.inviteCode, updated.inviteCode)
         assertEquals(HttpStatusCode.NotFound, join(bob, household.inviteCode).status)
         assertEquals(HttpStatusCode.OK, join(bob, updated.inviteCode).status)
+    }
+
+    private fun expireInviteCode(householdId: String) = transaction {
+        HouseholdTable.update({ HouseholdTable.id eq UUID.fromString(householdId) }) {
+            it[inviteCodeExpiresAt] = Instant.now().minusSeconds(60)
+        }
+    }
+
+    @Test
+    fun `invite codes are valid for 7 days`() = testApplication {
+        setupTestApplication()
+        val before = Instant.now()
+
+        val household = createHousehold(alice)
+
+        val expiresAt = Instant.parse(household.inviteCodeExpiresAt)
+        val validity = Duration.between(before, expiresAt)
+        assertTrue(validity > Duration.ofDays(7).minusMinutes(1) && validity <= Duration.ofDays(7).plusMinutes(1))
+    }
+
+    @Test
+    fun `an expired invite code cannot be used to join`() = testApplication {
+        setupTestApplication()
+        val household = createHousehold(alice)
+        expireInviteCode(household.id)
+
+        val response = join(bob, household.inviteCode)
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("expired"))
+        assertNull(householdRepo.getForMember(UUID.fromString(household.id), bob))
+    }
+
+    @Test
+    fun `a member loading the household gets a new code once the old one expired`() = testApplication {
+        setupTestApplication()
+        val household = createHousehold(alice)
+        expireInviteCode(household.id)
+
+        val mine: List<Household> = jsonClient.get("/households") { bearerAuth(token(alice)) }.body()
+
+        val renewed = mine.single()
+        assertNotEquals(household.inviteCode, renewed.inviteCode)
+        assertTrue(Instant.parse(renewed.inviteCodeExpiresAt).isAfter(Instant.now().plus(Duration.ofDays(6))))
+        assertEquals(HttpStatusCode.NotFound, join(bob, household.inviteCode).status)
+        assertEquals(HttpStatusCode.OK, join(bob, renewed.inviteCode).status)
+    }
+
+    @Test
+    fun `regenerating the invite code restarts its 7 days`() = testApplication {
+        setupTestApplication()
+        val household = createHousehold(alice)
+        expireInviteCode(household.id)
+
+        val updated: Household = jsonClient.post("/households/${household.id}/invite-code") { bearerAuth(token(alice)) }.body()
+
+        assertTrue(Instant.parse(updated.inviteCodeExpiresAt).isAfter(Instant.now().plus(Duration.ofDays(6))))
     }
 
     @Test

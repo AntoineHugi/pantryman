@@ -627,6 +627,15 @@
   margin-bottom: 1rem;
 }
 
+.invite-row:has(+ .invite-expiry) {
+  margin-bottom: 0.25rem;
+}
+
+.invite-expiry {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
 .invite-code {
   font-size: 1.25rem;
   letter-spacing: 0.15em;

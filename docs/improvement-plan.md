@@ -1,6 +1,6 @@
 # Pantryman — Improvement Plan
 
-_Started 2026-10-14. Last updated 2026-10-18 (meal plans): finished work is reduced to the log at the bottom; how things work now is in `CLAUDE.md`._
+_Started 2026-10-14. Last updated 2026-10-18 (invite code expiry): finished work is reduced to the log at the bottom; how things work now is in `CLAUDE.md`._
 
 Goals:
 
@@ -15,18 +15,17 @@ The base is solid (routes → services → repositories, Flyway, Koin, real inte
 ## Suggested order
 
 1. ~~Bug fixes, monorepo, `CLAUDE.md`, CI~~ (done)
-2. ~~`StatusPages`, TanStack Query, Gradle, cleanup, redeploy~~ (done, except Tailwind, moved to step 3)
-3. ~~Households/sharing~~ → household follow-ups → Capacitor APK → ~~mobile UX pass~~ (Tailwind still open).
+2. ~~`StatusPages`, TanStack Query, Gradle, cleanup, redeploy~~ (done; Tailwind dropped 2026-10-18)
+3. ~~Households/sharing, Capacitor APK, mobile UX pass~~ (done 2026-10-18).
 4. ~~Recipes, meal plan, list generation, staples~~ (done 2026-10-18, except URL import).
-5. Later: URL import, aisle sorting, offline editing (offline reading works: the query cache is persisted).
+5. Later: URL import, offline editing (offline reading works: the query cache is persisted).
 
 ---
 
 ## Step 3 (remaining) — Android app for family
 
 **Household follow-ups** (from the 2026-10-17 households work):
-- Not yet tested by hand in a browser.
-- Anyone with the invite code can join. Make a new code if it leaks. Acceptable for family use.
+- Anyone with the invite code can join while it's valid (7 days). Make a new code if it leaks. Acceptable for family use.
 - Sync is by polling: the open list refetches every 5 s while visible, and other pages refetch on focus. SSE/WebSockets only if that isn't enough (the free Render instance sleeping makes long-lived connections unreliable anyway).
 
 **Path: Capacitor APK, no PWA step** (decided 2026-10-17: a real installable app is preferred over a PWA).
@@ -41,9 +40,8 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
 - **iPhones:** the APK is Android only. iPhone users keep using pantryman.de in Safari; an iOS build (Xcode + $99/year) only if needed.
 - **Avoid** React Native / Compose rewrites; they double the UI work.
 
-**Mobile-first UX pass**: done 2026-10-18 (see the log), tested in a phone-sized browser. Still to do:
-- Check it on a real phone with the APK: keyboard behavior when adding several items, the toast above the navigation bar, tap targets.
-- Design system: the CSS is now token-based plain CSS (`index.css` + `App.css`) with no inline styles. Moving to Tailwind or a component library is still worth it before the recipe pages add many new screens.
+**Mobile-first UX pass**: done 2026-10-18 (see the log), tested in a phone-sized browser and on a phone with the APK. Still to do:
+- Design system: staying with token-based plain CSS (`index.css` + `App.css`, no inline styles). Tailwind was dropped on 2026-10-18: the cleanup already gave consistent styling, and migrating every page wouldn't change anything for users.
 - Ideas not done: swipe to delete; a "new version available" check in the APK; undo for deleting a whole list.
 
 ---
@@ -78,13 +76,14 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
 
 - [x] Step 1: bug fixes, `CLAUDE.md`, monorepo, CI (2026-10-14)
 - [x] Redeploy on Render + Neon (2026-10-15)
-- [x] Step 2 (2026-10-14), except Tailwind, moved to step 3
-- [ ] Step 3: households done (2026-10-17), invite link through signup fixed (2026-10-17), Capacitor project + APK workflow set up (2026-10-17), mobile UX pass (2026-10-18), first APK built in CI and tested on a phone (2026-10-18). To do: Tailwind.
+- [x] Step 2 (2026-10-14); Tailwind dropped (2026-10-18)
+- [x] Step 3: households done (2026-10-17), invite link through signup fixed (2026-10-17), Capacitor project + APK workflow set up (2026-10-17), mobile UX pass (2026-10-18), first APK built in CI and tested on a phone (2026-10-18), invite codes expire after 7 days (2026-10-18).
 - [ ] Step 4: recipes section + JSON import (2026-10-18), add to list with decimal quantities and units (2026-10-18), meal plans (2026-10-18), usual items: defaults and staples (2026-10-18). To do: URL import.
 - [ ] Step 5
 
 ### Done log
 
+- **2026-10-18 — Invite codes expire after 7 days.** `V16` adds `households.invite_code_expires_at` (codes that existed got 7 days from the migration). A new code (create, "New code", removing a member) is valid 7 days; joining with an expired code is a 400 ("ask a member for a new one"), except for someone who is already a member. A member who loads the household after expiry gets a new code automatically, so the households page always shows one that works, also in older APKs. `Household` gains `inviteCodeExpiresAt` (additive); the households page shows "Valid until Sun 25 Oct" and the shared invite text says so too. 185 backend tests pass.
 - **2026-10-14 — Step 1 bug fixes.** Item IDOR (item queries now scoped by `listId`), JWT secret without a default, auth rate limiting, 401 interceptor no longer logs out on `/auth/*`, stable ordering (`V7` `created_at`), email normalization, signup rollback when the verification email fails, password minimum 8 on both sides. The test suite, which didn't compile before, was repaired.
 - **2026-10-14 — Monorepo, `CLAUDE.md`, CI.** `pantryman-web` merged in as `app/` with history; Vercel deploys from this repo and the old repo is archived.
 - **2026-10-14 — Step 2.** `StatusPages` (consistent `{"error": ...}`, malformed UUIDs → 400), TanStack Query with optimistic item edits, Gradle version catalog, dead code removed. Server JSON uses `ignoreUnknownKeys` so older clients keep working.

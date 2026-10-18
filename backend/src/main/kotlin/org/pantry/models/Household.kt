@@ -29,6 +29,8 @@ data class Household(
     val name: String,
     // Any member can see it and pass it on; whoever has it can join
     val inviteCode: String,
+    // ISO-8601 instant. A member who loads the household after this gets a new code.
+    val inviteCodeExpiresAt: String,
     // Can rename the household and remove members
     val ownerId: String,
     val members: List<HouseholdMember>

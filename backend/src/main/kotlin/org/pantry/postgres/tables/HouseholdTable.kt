@@ -9,6 +9,8 @@ object HouseholdTable : Table("households") {
     val id = uuid("id")
     val name = varchar("name", 255)
     val inviteCode = varchar("invite_code", 16).uniqueIndex()
+    // After this, the code no longer lets anyone join
+    val inviteCodeExpiresAt = timestamp("invite_code_expires_at")
     // Can rename the household and remove members
     val ownerId = uuid("owner_id").references(UserTable.id, onDelete = ReferenceOption.CASCADE)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)

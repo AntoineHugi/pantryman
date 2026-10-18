@@ -10,15 +10,17 @@ import org.pantry.postgres.tables.HouseholdMemberTable
 import org.pantry.postgres.tables.HouseholdTable
 import org.pantry.postgres.tables.MealPlanTable
 import org.pantry.postgres.tables.UserTable
+import java.time.Instant
 import java.util.UUID
 
 class HouseholdRepository {
 
-    fun create(id: UUID, name: String, inviteCode: String, creatorId: UUID): Household = transaction {
+    fun create(id: UUID, name: String, inviteCode: String, inviteCodeExpiresAt: Instant, creatorId: UUID): Household = transaction {
         HouseholdTable.insert {
             it[HouseholdTable.id] = id
             it[HouseholdTable.name] = name
             it[HouseholdTable.inviteCode] = inviteCode
+            it[HouseholdTable.inviteCodeExpiresAt] = inviteCodeExpiresAt
             it[HouseholdTable.ownerId] = creatorId
         }
         HouseholdMemberTable.insert {
@@ -47,10 +49,13 @@ class HouseholdRepository {
             .any()
     }
 
-    fun getIdByInviteCode(inviteCode: String): UUID? = transaction {
-        HouseholdTable.select(HouseholdTable.id)
+    fun getIdByInviteCode(inviteCode: String): UUID? = getInvite(inviteCode)?.first
+
+    // The household with this code and when the code expires, expired or not
+    fun getInvite(inviteCode: String): Pair<UUID, Instant>? = transaction {
+        HouseholdTable.select(HouseholdTable.id, HouseholdTable.inviteCodeExpiresAt)
             .where { HouseholdTable.inviteCode eq inviteCode }
-            .map { it[HouseholdTable.id] }
+            .map { it[HouseholdTable.id] to it[HouseholdTable.inviteCodeExpiresAt] }
             .singleOrNull()
     }
 
@@ -70,9 +75,10 @@ class HouseholdRepository {
         }
     }
 
-    fun updateInviteCode(householdId: UUID, inviteCode: String) = transaction {
+    fun updateInviteCode(householdId: UUID, inviteCode: String, expiresAt: Instant) = transaction {
         HouseholdTable.update({ HouseholdTable.id eq householdId }) {
             it[HouseholdTable.inviteCode] = inviteCode
+            it[HouseholdTable.inviteCodeExpiresAt] = expiresAt
         }
     }
 
@@ -146,6 +152,7 @@ class HouseholdRepository {
             id = id.toString(),
             name = row[HouseholdTable.name],
             inviteCode = row[HouseholdTable.inviteCode],
+            inviteCodeExpiresAt = row[HouseholdTable.inviteCodeExpiresAt].toString(),
             ownerId = row[HouseholdTable.ownerId].toString(),
             members = members
         )

@@ -64,6 +64,9 @@ export interface User {
     id: string;
     name: string;
     inviteCode: string;
+    // ISO-8601 instant, 7 days after the code was made. The server renews an expired code when a member loads it.
+    // Optional: missing from households cached before expiry existed.
+    inviteCodeExpiresAt?: string;
     // Can rename the household and remove members
     ownerId: string;
     members: HouseholdMember[];

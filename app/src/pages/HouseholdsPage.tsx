@@ -23,6 +23,11 @@ function inviteLink(code: string) {
   return `${publicAppUrl}/households?join=${code}`;
 }
 
+// "Sun 25 Oct"
+function formatExpiry(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+}
+
 function HouseholdCard({ household }: { household: Household }) {
   const { userId } = useAuth();
   const leave = useLeaveHousehold();
@@ -65,7 +70,8 @@ function HouseholdCard({ household }: { household: Household }) {
 
   const handleShare = async () => {
     const link = inviteLink(household.inviteCode);
-    const text = `Join "${household.name}" on Pantryman: ${link}`;
+    const validUntil = household.inviteCodeExpiresAt ? ` (valid until ${formatExpiry(household.inviteCodeExpiresAt)})` : "";
+    const text = `Join "${household.name}" on Pantryman: ${link}${validUntil}`;
     try {
       // The share sheet on phones (WhatsApp, SMS, ...), the clipboard elsewhere
       if (!(await shareText("Pantryman invite", text))) {
@@ -169,6 +175,9 @@ function HouseholdCard({ household }: { household: Household }) {
           {copied ? "Link copied" : "Share invite link"}
         </button>
       </div>
+      {household.inviteCodeExpiresAt && (
+        <p className="invite-expiry muted">Valid until {formatExpiry(household.inviteCodeExpiresAt)}</p>
+      )}
 
       <div className="form-actions">
         <button className="btn btn-secondary btn-small" onClick={handleRegenerate} disabled={regenerate.isPending}>

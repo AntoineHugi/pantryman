@@ -173,7 +173,7 @@ class GroceryListRepositoryTest {
         val memberId = UUID.randomUUID().also { createUser(it) }
         val outsiderId = UUID.randomUUID().also { createUser(it) }
         val householdId = UUID.randomUUID()
-        householdRepo.create(householdId, "Home", "CODE2345", testUserId)
+        householdRepo.create(householdId, "Home", "CODE2345", java.time.Instant.now().plusSeconds(3600), testUserId)
         householdRepo.addMember(householdId, memberId)
 
         val sharedId = UUID.randomUUID()
