@@ -32,12 +32,13 @@ One git repo (GitHub: `AntoineHugi/pantryman`). The old `pantryman-web` repo was
 
 ### Frontend structure (`app/src/`)
 
-- `api/`: axios client and one module per resource (`lists.ts`, `items.ts`, `households.ts`, `auth.ts`), plus `types.ts`. Pages call these modules and never call axios directly.
-- `hooks/useGroceryLists.ts`, `hooks/useHouseholds.ts`: TanStack Query hooks (queries + mutations, optimistic item updates). Pages use these for server data instead of `useEffect` + `useState`.
-- `queryClient.ts`: the query client. Its cache is persisted to localStorage (lists and households only), so the app opens on the last-known data, even offline. `clearQueryCache()` wipes it on logout and on a 401. It also copies each list's detail query into the `['lists']` query, so the item counts on the lists page stay current.
+- `api/`: axios client and one module per resource (`lists.ts`, `items.ts`, `households.ts`, `recipes.ts`, `auth.ts`), plus `types.ts`. Pages call these modules and never call axios directly.
+- `hooks/useGroceryLists.ts`, `hooks/useHouseholds.ts`, `hooks/useRecipes.ts`: TanStack Query hooks (queries + mutations, optimistic item updates). Pages use these for server data instead of `useEffect` + `useState`.
+- `queryClient.ts`: the query client. Its cache is persisted to localStorage (lists, households and recipes only), so the app opens on the last-known data, even offline. `clearQueryCache()` wipes it on logout and on a 401. It also copies each list's detail query into the `['lists']` query, so the item counts on the lists page stay current.
 - `pages/`, `components/`, `contexts/AuthContext.tsx` (token in localStorage; the context object is in `AuthContextValue.ts`), `hooks/`.
 - `contexts/FeedbackContext.tsx` + `hooks/useFeedback.ts`: `toast()` (with an optional action such as Undo) and `confirm()` (a promise-based dialog).
 - The list page: `components/AddItemBar.tsx` (always-visible input; "3 eggs" sets the quantity, duplicates update the existing item, suggestion chips) and `components/ItemRow.tsx` (tap the row to tick; edit, quantity and delete are in its editor). Parsing and validation are in `utils/itemInput.ts`. Suggestions come from `hooks/useItemSuggestions.ts`, using an item history kept on the device per user (`utils/itemHistory.ts`) plus the items on the user's other lists.
+- Recipes: `pages/Recipe*Page.tsx`. The edit form takes ingredients as text, one per line, parsed and formatted by `utils/recipeText.ts`. Import takes JSON in the format of `docs/recipe-format.md`. The main sections are in the bottom tab bar (`components/layout/TabBar.tsx`).
 - Styling: plain CSS. Color tokens are in `index.css` (`:root`) and the components in `App.css`. Touch targets are at least 44px, and hover styles go inside `@media (hover: hover)`. Tailwind is still on the roadmap.
 
 ## Commands
@@ -78,4 +79,6 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 - **Password reset:** `POST /auth/forgot-password` emails a link to `/reset-password?token=...` and answers the same whether or not the account exists. Only a SHA-256 hash of the token is stored (`users.password_reset_token_hash`), valid 1 hour, single use, latest link only. A successful reset also verifies the email. Existing logins (JWTs) stay valid after a reset.
 - Ktor YAML env syntax is `${VAR}` (required) or `${VAR:default}`.
 - **Frontend UI:** never use `alert()`/`confirm()`, which look out of place in the Android WebView. Use `useFeedback()`. Prefer Undo in a toast over a confirmation for reversible deletes. Back buttons are `<BackLink>` (a link to `/lists`), not `navigate(-1)`, which goes nowhere after a deep link or a reload. Wrap anything that waits on the server in `<SlowServerNotice active={...}>`: the Render backend can take ~50 s to wake.
+- **Recipes** are shared with every user: reads aren't scoped, but only the creator (`recipes.created_by`) can edit or delete one. The unit list is in `RecipeService.UNITS`, `utils/recipeText.ts` and `docs/recipe-format.md`; keep the three in step.
+- **JSON defaults:** the server's `Json` doesn't encode default values, so a response field with a default is left out when it equals the default. Give response models no defaults, or mark fields `@EncodeDefault`.
 - **Item mutations** share `itemMutationKey(listId)` (`useGroceryLists.ts`). The open list polls every 5 s (`refetchInterval`) so that changes from other household members show up, and polling pauses while an item mutation is in flight so that it can't undo an optimistic update. Give any new item mutation the same key.

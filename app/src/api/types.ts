@@ -66,3 +66,53 @@ export interface User {
     name: string;
     quantity: number;
   }
+  // Recipes are shared with every user; only the creator (createdBy) can edit or delete one.
+  // The format is in docs/recipe-format.md.
+  export interface RecipeIngredient {
+    name: string;
+    // null for "salt to taste"
+    amount: number | null;
+    // null for a count ("2 eggs")
+    unit: string | null;
+    note?: string | null;
+    section?: string | null;
+    optional?: boolean;
+  }
+
+  export interface RecipeSummary {
+    id: string;
+    // null once the creator has deleted their account
+    createdBy: string | null;
+    name: string;
+    servings: number;
+    description?: string | null;
+    prepMinutes?: number | null;
+    cookMinutes?: number | null;
+    tags: string[];
+  }
+
+  export interface Recipe extends RecipeSummary {
+    sourceUrl?: string | null;
+    ingredients: RecipeIngredient[];
+    steps: string[];
+    notes?: string | null;
+  }
+
+  export interface RecipeInput {
+    name: string;
+    servings: number;
+    description?: string | null;
+    prepMinutes?: number | null;
+    cookMinutes?: number | null;
+    tags: string[];
+    sourceUrl?: string | null;
+    ingredients: RecipeIngredient[];
+    steps: string[];
+    notes?: string | null;
+  }
+
+  export interface RecipeImportResponse {
+    imported: RecipeSummary[];
+    // Names of recipes the user had already added
+    skipped: string[];
+  }

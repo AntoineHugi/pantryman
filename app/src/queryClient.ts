@@ -5,6 +5,7 @@ import type { GroceryList } from './api/types';
 
 const PERSIST_KEY = 'pantryman-query-cache';
 const WEEK = 7 * 24 * 60 * 60 * 1000;
+const PERSISTED_QUERIES = ['lists', 'households', 'recipes'];
 
 // Refetches when the window regains focus, so changes from other devices show up.
 // gcTime matches the persisted cache's age: queries dropped from memory aren't saved either.
@@ -25,7 +26,8 @@ queryClient.getQueryCache().subscribe((event) => {
 });
 
 // The cache is saved to localStorage, so the app opens on the last-known lists right away
-// (and shows them offline) while the server, which may be asleep, answers.
+// (and shows them offline) while the server, which may be asleep, answers. Recipes too, so
+// one opened before can be read in the kitchen without a connection.
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   persister: createSyncStoragePersister({ storage: window.localStorage, key: PERSIST_KEY }),
   maxAge: WEEK,
@@ -33,7 +35,7 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   buster: '1',
   dehydrateOptions: {
     shouldDehydrateQuery: (query) =>
-      query.state.status === 'success' && (query.queryKey[0] === 'lists' || query.queryKey[0] === 'households'),
+      query.state.status === 'success' && PERSISTED_QUERIES.includes(String(query.queryKey[0])),
   },
 };
 

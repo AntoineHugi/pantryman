@@ -38,3 +38,20 @@ export function ChevronIcon({ open }: { open: boolean }) {
     </svg>
   );
 }
+
+export function ListIcon() {
+  return (
+    <svg {...svgProps} width={22} height={22}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2" />
+    </svg>
+  );
+}
+
+export function BookIcon() {
+  return (
+    <svg {...svgProps} width={22} height={22}>
+      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+    </svg>
+  );
+}

@@ -718,3 +718,229 @@
   gap: 0.75rem;
   margin-top: 1.25rem;
 }
+
+/* Tab bar (bottom of the screen, logged in) */
+.container.has-tab-bar {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 50;
+}
+
+.tab-bar-link {
+  flex: 1;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.tab-bar-link.active {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.tab-bar-link.active svg {
+  stroke-width: 2.5;
+}
+
+/* The toast sits above the tab bar */
+body:has(.tab-bar) .toast {
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+}
+
+/* On phones, the on-screen keyboard would push the tab bar up over the page while typing.
+   It comes back after a delay: tapping a button near the bottom ends the typing, and the
+   bar must not appear under the finger and take the tap. */
+@media (hover: none) {
+  .tab-bar {
+    transition: visibility 0s linear 0.4s;
+  }
+  body:has(input:focus, textarea:focus) .tab-bar {
+    visibility: hidden;
+    transition-delay: 0s;
+  }
+}
+
+/* Forms: labels, hints, rows of small fields, textareas */
+.form-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.form-hint {
+  margin: 0 0 0.4rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+textarea.form-input {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.file-input {
+  font-size: 1rem;
+  max-width: 100%;
+}
+
+/* Recipes page */
+.recipes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.recipes-header h1 {
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.list-card.recipe-card {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.15rem;
+}
+
+.recipe-card-meta {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+/* Recipe page */
+.recipe-meta {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+}
+
+.recipe-description {
+  margin: 0 0 1rem;
+}
+
+.recipe-section {
+  margin-bottom: 1rem;
+}
+
+.recipe-section h2 {
+  margin: 0;
+}
+
+.recipe-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.recipe-section > h2 {
+  margin-bottom: 0.5rem;
+}
+
+.servings-count {
+  min-width: 6.5rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.recipe-subheading {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ingredient-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ingredient-list li {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.ingredient-list li:last-child {
+  border-bottom: none;
+}
+
+.ingredient-quantity {
+  flex: 0 0 5.5rem;
+  font-weight: 600;
+}
+
+.step-list {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.step-list li {
+  padding: 0.35rem 0;
+}
+
+.recipe-notes {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.recipe-owner-actions {
+  margin-top: 1.5rem;
+}
+
+/* Import page */
+.import-text {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 14px;
+}
+
+.import-result {
+  margin-bottom: 1.5rem;
+}
+
+.import-result p {
+  margin: 0 0 0.5rem;
+}
+
+.import-result ul {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}

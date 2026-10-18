@@ -13,6 +13,10 @@ import org.pantry.postgres.tables.GroceryListTable
 import org.pantry.postgres.tables.HouseholdMemberTable
 import org.pantry.postgres.tables.HouseholdTable
 import org.pantry.postgres.tables.ItemTable
+import org.pantry.postgres.tables.RecipeIngredientTable
+import org.pantry.postgres.tables.RecipeStepTable
+import org.pantry.postgres.tables.RecipeTable
+import org.pantry.postgres.tables.RecipeTagTable
 import org.pantry.postgres.tables.UserTable
 import org.testcontainers.containers.PostgreSQLContainer
 
@@ -39,7 +43,10 @@ class MigrationTest {
 
         Database.connect(postgres.jdbcUrl, "org.postgresql.Driver", postgres.username, postgres.password)
 
-        for (table in listOf(UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable)) {
+        for (table in listOf(
+            UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
+            RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable
+        )) {
             val expected = table.columns.associate { it.name to it.columnType.nullable }
             assertEquals(expected, migratedColumns(table), "Columns of ${table.tableName}")
         }

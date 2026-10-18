@@ -10,6 +10,10 @@ import ListsPage from './pages/ListsPage';
 import ListDetailsPage from './pages/ListDetailsPage';
 import SettingsPage from './pages/SettingsPage';
 import HouseholdsPage from './pages/HouseholdsPage';
+import RecipesPage from './pages/RecipesPage';
+import RecipePage from './pages/RecipePage';
+import { EditRecipePage, NewRecipePage } from './pages/RecipeFormPage';
+import RecipeImportPage from './pages/RecipeImportPage';
 import { useAuth } from './hooks/useAuth';
 import { useNativeAppEvents } from './hooks/useNativeAppEvents';
 import './App.css';
@@ -45,6 +49,46 @@ function App() {
           element={
             <ProtectedRoute>
               <ListDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recipes"
+          element={
+            <ProtectedRoute>
+              <RecipesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recipes/new"
+          element={
+            <ProtectedRoute>
+              <NewRecipePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recipes/import"
+          element={
+            <ProtectedRoute>
+              <RecipeImportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recipes/:id"
+          element={
+            <ProtectedRoute>
+              <RecipePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recipes/:id/edit"
+          element={
+            <ProtectedRoute>
+              <EditRecipePage />
             </ProtectedRoute>
           }
         />

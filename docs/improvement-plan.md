@@ -50,23 +50,27 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
 
 ## Step 4 — Recipes → grocery list
 
+**Decisions (2026-10-18)**
+- Item quantities become decimal (`item_list.quantity NUMERIC`), plus an optional `unit`. The `quantity` field is kept, so older APKs keep working (additive).
+- **Recipes are shared with every user**, not scoped to a household, so everyone benefits from what others add. Anyone can view a recipe and use it in a list or a meal plan. Only the user who added it can edit or delete it. If that user deletes their account, the recipe stays (`created_by` set to NULL).
+- Meal plans stay per household (or personal), with the list access rule.
+- **No LLM in the app** (no billed API account). Recipes are converted from our text documents to JSON outside the app, with a Claude plan (later a skill), and imported. The format is in `docs/recipe-format.md`.
+- Everything in English. Ingredient names are lowercase, singular and generic, so merging by name works without a canonical `ingredients` table for now.
+
+**Slices**
+1. Recipes: tables, CRUD API, a Recipes section (bottom tab bar: Lists / Recipes / Plan), a readable recipe page.
+2. JSON import: `POST /recipes/import` (one or several recipes, validated all-or-nothing), and an import screen (pick a file or paste).
+3. "Add to list" from a recipe: servings + target list → items added, scaled and merged, tagged "from: Lasagna".
+4. Meal plan: entries of date + recipe + servings; "Generate list" for a date range uses slice 3's function; entries are marked as added so they aren't added twice.
+5. Pantry staples skipped during generation; URL import (schema.org `Recipe` JSON-LD).
+
 **Data model**
-- Quantities: `item.quantity` is still an `INT` with no unit. Migrate to `amount NUMERIC` + `unit`.
-- Tables:
-  - `ingredients`: canonical name, category/aisle (for sorting the list)
-  - `recipes`: household (or personal, like lists), name, servings, instructions, source URL
-  - `recipe_ingredients`: recipe, ingredient, amount, unit
-  - `meal_plan`: household, week, recipe, servings
-  - `items` gains optional `ingredient_id` + source recipe ("from: Lasagna")
-- Reuse the list access rule (owner or household member) for recipes and meal plans.
+- `recipes`: created_by, name, servings, description, prep/cook minutes, tags, source URL, steps, notes, created_at
+- `recipe_ingredients`: recipe, position, name, amount (NUMERIC, nullable), unit (nullable), note, section, optional
+- `meal_plan_entries`: household (or user), date, recipe, servings, added_to_list
+- `item_list` gains `unit` and an optional source recipe
 
-**List generation**: one backend function: selected recipes → scale by servings → group by (ingredient, unit) → sum → merge into existing unchecked items rather than duplicating. Write it test-first; unit conversion and merging is where bugs hide.
-
-**Pantry staples**: the household marks salt, oil, etc. as "always have"; they're skipped during generation.
-
-**Getting recipes in**
-- URL import: most recipe sites embed schema.org `Recipe` JSON-LD, so no AI is needed.
-- Later: an LLM to parse free text / photos and match ingredients to the canonical list.
+**List generation**: one backend function: selected recipes → scale by servings → group by (name, unit) → sum → merge into existing unticked items rather than duplicating. Only g↔kg and ml↔l are converted; other unit mismatches stay as separate lines. Ingredients without an amount are added once, without a quantity. Write it test-first; unit conversion and merging is where bugs hide.
 
 ---
 
@@ -75,8 +79,8 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
 - [x] Step 1: bug fixes, `CLAUDE.md`, monorepo, CI (2026-10-14)
 - [x] Redeploy on Render + Neon (2026-10-15)
 - [x] Step 2 (2026-10-14), except Tailwind, moved to step 3
-- [ ] Step 3: households done (2026-10-17), invite link through signup fixed (2026-10-17), Capacitor project + APK workflow set up (2026-10-17), mobile UX pass (2026-10-18). To do: GitHub secrets + first APK build, hand test on a phone, Tailwind.
-- [ ] Step 4
+- [ ] Step 3: households done (2026-10-17), invite link through signup fixed (2026-10-17), Capacitor project + APK workflow set up (2026-10-17), mobile UX pass (2026-10-18), first APK built in CI and tested on a phone (2026-10-18). To do: Tailwind.
+- [ ] Step 4: recipes section + JSON import done (2026-10-18). To do: add to list (decimal quantities), meal plan, pantry staples, URL import.
 - [ ] Step 5
 
 ### Done log
@@ -103,4 +107,5 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
   - **App-wide:** `alert()`/`confirm()` replaced by toasts and a dialog (`useFeedback`). The TanStack Query cache is persisted to localStorage (opens instantly and offline; wiped on logout and on 401). A "server is waking up" notice after 3 s of waiting, and pending states on Login and Signup. `BackLink` replaces `navigate(-1)`. A menu icon replaces the gear, with a Lists entry and Escape to close. Real title, favicon and `theme-color`. The Vite template CSS (dark mode) is gone, inline styles are replaced by classes, touch targets are at least 44px, and hover effects are limited to `(hover: hover)`. Checkboxes and icon buttons are accessible (`aria-label`).
   - **Testing:** typecheck, lint and build pass. A Playwright walkthrough at 390×844 against a local backend covered adding, duplicates, ticking, editing, undo, clearing, suggestions, deleting a list, a second member's tick appearing within about 4 s, an offline reload and logout clearing the cache.
 - **2026-10-18 — `isFavorite` removed.** It was never used in the UI (suggestions use the on-device item history), so `V11` drops `item_list.is_favorite`, and it's gone from the model, the update request and the frontend type. Older clients that still send `isFavorite` keep working because unknown keys are ignored. 132 backend tests pass.
+- **2026-10-18 — Recipes and JSON import (step 4, slices 1–2).** `V12`: `recipes`, `recipe_ingredients`, `recipe_steps`, `recipe_tags`. Recipes are shared with every user; only the creator can edit or delete one (403 otherwise), and they stay when the creator deletes their account (`created_by` → NULL). API: `GET/POST /recipes`, `GET/PUT/DELETE /recipes/{id}`, `POST /recipes/import` (one recipe or an array, format in `docs/recipe-format.md`, validated all or nothing, at most 200, names the user already added are skipped). The service normalizes recipes (trims, lowercases ingredient names, units and tags; units from a fixed list). Frontend: a bottom tab bar (Lists / Recipes; hidden while typing on phones), a recipes page with search, a recipe page (servings stepper that scales amounts, sections, steps), a create/edit form where ingredients are typed one per line ("200 g flour, sifted", "Sauce:" starts a section; `utils/recipeText.ts`), and an import page (file or paste). Recipes are persisted in the query cache, so a recipe opened before can be read offline. Found while testing: the app's server `Json` doesn't encode default values, so response models must not rely on defaults (`@EncodeDefault` on `RecipeIngredient`); `RecipeAPIIT` now uses the same `Json` settings. 152 backend tests pass; a Playwright walkthrough at 390×844 covered import, re-import, errors, scaling, edit, create, search, another user's read-only view and delete.
 - **2026-10-18 — Bulk delete for "Clear ticked items".** `POST /lists/{listId}/items/bulk-delete` with `{"itemIds": [...]}` returns `{"deleted": n}`. One statement scoped by `listId` (all or nothing); at most 500 IDs; IDs no longer on the list are skipped. It deletes the IDs the client showed as ticked, not "every ticked item", so an item another member ticks meanwhile isn't deleted unseen. The frontend's `useDeleteItems` uses it instead of one request per item. 138 backend tests pass, including cross-user access.
