@@ -34,11 +34,13 @@ import org.pantry.models.RecipeInput
 import org.pantry.postgres.tables.*
 import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.HouseholdRepository
+import org.pantry.repositories.PantryRepository
 import org.pantry.repositories.ItemRepository
 import org.pantry.repositories.RecipeRepository
 import org.pantry.repositories.UserRepository
 import org.pantry.services.GroceryListService
 import org.pantry.services.HouseholdService
+import org.pantry.services.PantryService
 import org.pantry.services.ItemService
 import org.pantry.services.RecipeListService
 import org.pantry.services.RecipeService
@@ -60,6 +62,8 @@ class RecipeToListAPIIT : KoinTest {
                 single { GroceryListService(get()) }
                 single { HouseholdRepository() }
                 single { HouseholdService(get()) }
+                single { PantryRepository() }
+                single { PantryService(get(), get()) }
                 single { RecipeRepository() }
                 single { RecipeService(get()) }
                 single { RecipeListService(get(), get()) }
@@ -75,7 +79,7 @@ class RecipeToListAPIIT : KoinTest {
         transaction {
             SchemaUtils.create(
                 UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
-                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable
+                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable, PantryItemTable
             )
             listOf(RecipeTagTable, RecipeStepTable, RecipeIngredientTable, RecipeTable, ItemTable, GroceryListTable,
                 HouseholdMemberTable, HouseholdTable, UserTable).forEach { it.deleteAll() }

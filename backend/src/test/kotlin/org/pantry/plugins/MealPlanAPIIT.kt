@@ -48,11 +48,13 @@ class MealPlanAPIIT : KoinTest {
                 single { GroceryListService(get()) }
                 single { HouseholdRepository() }
                 single { HouseholdService(get()) }
+                single { PantryRepository() }
+                single { PantryService(get(), get()) }
                 single { RecipeRepository() }
                 single { RecipeService(get()) }
                 single { RecipeListService(get(), get()) }
                 single { MealPlanRepository() }
-                single { MealPlanService(get(), get(), get(), get()) }
+                single { MealPlanService(get(), get(), get(), get(), get()) }
             })
     }
 
@@ -66,7 +68,7 @@ class MealPlanAPIIT : KoinTest {
         transaction {
             SchemaUtils.create(
                 UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
-                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable
+                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable, PantryItemTable
             )
             listOf(MealPlanEntryTable, MealPlanTable, RecipeTagTable, RecipeStepTable, RecipeIngredientTable, RecipeTable,
                 ItemTable, GroceryListTable, HouseholdMemberTable, HouseholdTable, UserTable).forEach { it.deleteAll() }

@@ -7,6 +7,7 @@ import org.pantry.models.MealSlot
 import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.ItemRepository
 import org.pantry.repositories.MealPlanRepository
+import org.pantry.repositories.PantryScope
 import org.pantry.repositories.RecipeRepository
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -17,7 +18,8 @@ class MealPlanService(
     private val repo: MealPlanRepository,
     private val recipeRepo: RecipeRepository,
     private val listRepo: GroceryListRepository,
-    private val itemRepo: ItemRepository
+    private val itemRepo: ItemRepository,
+    private val pantryService: PantryService
 ) {
     fun getAll(userId: UUID): List<MealPlan> = repo.getAll(userId)
 
@@ -57,22 +59,26 @@ class MealPlanService(
 
     /**
      * Creates the grocery list "Meal plan - 20.10/26.10" from every meal's recipe, scaled to its
-     * servings and merged (ListMerge), shared like the plan. Optional ingredients are left out.
+     * servings and merged (ListMerge), shared like the plan. Optional ingredients and pantry
+     * staples are left out; pantry defaults are added, like on any new list.
      */
     fun confirm(plan: MealPlan, userId: UUID): GroceryList {
         if (plan.listId != null) throw IllegalArgumentException("This plan already has a grocery list")
         if (plan.entries.isEmpty()) throw IllegalArgumentException("Add some meals first")
 
+        val scope = plan.householdId?.let { PantryScope.Household(UUID.fromString(it)) } ?: PantryScope.Personal(userId)
+        val staples = pantryService.stapleNames(scope)
         val ingredients = plan.entries.flatMap { entry ->
             val recipe = recipeRepo.get(UUID.fromString(entry.recipeId)) ?: return@flatMap emptyList()
             val scale = entry.servings.toDouble() / recipe.servings
-            recipe.ingredients.filter { !it.optional }.map {
+            recipe.ingredients.filter { !it.optional && PantryService.normalize(it.name) !in staples }.map {
                 IngredientToAdd(it.name, it.amount?.let { amount -> amount * scale }, it.unit, recipe.name)
             }
         }
         val listId = UUID.randomUUID()
         listRepo.create(listId, listName(plan), userId, plan.householdId?.let(UUID::fromString))
         itemRepo.merge(listId) { items -> ListMerge.plan(items, ingredients) }
+        pantryService.addDefaults(listId, scope, null)
         repo.setListId(UUID.fromString(plan.id), listId)
         return listRepo.getById(listId, userId)!!
     }

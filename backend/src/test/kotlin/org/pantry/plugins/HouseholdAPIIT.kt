@@ -37,6 +37,7 @@ import org.pantry.postgres.tables.HouseholdTable
 import org.pantry.postgres.tables.ItemTable
 import org.pantry.postgres.tables.MealPlanEntryTable
 import org.pantry.postgres.tables.MealPlanTable
+import org.pantry.postgres.tables.PantryItemTable
 import org.pantry.postgres.tables.RecipeIngredientTable
 import org.pantry.postgres.tables.RecipeStepTable
 import org.pantry.postgres.tables.RecipeTable
@@ -44,10 +45,12 @@ import org.pantry.postgres.tables.RecipeTagTable
 import org.pantry.postgres.tables.UserTable
 import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.HouseholdRepository
+import org.pantry.repositories.PantryRepository
 import org.pantry.repositories.ItemRepository
 import org.pantry.repositories.UserRepository
 import org.pantry.services.GroceryListService
 import org.pantry.services.HouseholdService
+import org.pantry.services.PantryService
 import org.pantry.services.ItemService
 import java.util.Date
 import java.util.UUID
@@ -70,6 +73,8 @@ class HouseholdAPIIT : KoinTest {
                 single { GroceryListService(get()) }
                 single { HouseholdRepository() }
                 single { HouseholdService(get()) }
+                single { PantryRepository() }
+                single { PantryService(get(), get()) }
             })
     }
 
@@ -89,7 +94,7 @@ class HouseholdAPIIT : KoinTest {
         transaction {
             SchemaUtils.create(
                 UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
-                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable
+                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable, PantryItemTable
             )
             ItemTable.deleteAll()
             GroceryListTable.deleteAll()

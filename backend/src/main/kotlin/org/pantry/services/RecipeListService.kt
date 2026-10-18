@@ -12,16 +12,25 @@ class RecipeListService(
     /**
      * Adds the recipe's ingredients to the list, scaled from the recipe's servings to [servings].
      * [ingredientIndexes] picks ingredients by position (e.g. without the ones already at home);
-     * by default every ingredient that isn't optional. The route checks access to the list.
-     * Null if there is no such recipe.
+     * by default every ingredient that isn't optional or a staple ([skipNames], lowercase: salt is
+     * always at home). The route checks access to the list. Null if there is no such recipe.
      */
-    fun addRecipe(listId: UUID, recipeId: UUID, servings: Int?, ingredientIndexes: List<Int>?): MergePlan? {
+    fun addRecipe(
+        listId: UUID,
+        recipeId: UUID,
+        servings: Int?,
+        ingredientIndexes: List<Int>?,
+        skipNames: Set<String> = emptySet()
+    ): MergePlan? {
         val recipe = recipeRepo.get(recipeId) ?: return null
         val wanted = servings ?: recipe.servings
         if (wanted !in 1..RecipeService.MAX_SERVINGS) {
             throw IllegalArgumentException("servings must be between 1 and ${RecipeService.MAX_SERVINGS}")
         }
-        val indexes = ingredientIndexes?.toSet() ?: recipe.ingredients.indices.filter { !recipe.ingredients[it].optional }.toSet()
+        val indexes = ingredientIndexes?.toSet() ?: recipe.ingredients.indices.filter {
+            val ingredient = recipe.ingredients[it]
+            !ingredient.optional && PantryService.normalize(ingredient.name) !in skipNames
+        }.toSet()
         if (indexes.any { it !in recipe.ingredients.indices }) throw IllegalArgumentException("Unknown ingredient")
         if (indexes.isEmpty()) throw IllegalArgumentException("Choose at least one ingredient")
 

@@ -6,7 +6,7 @@ Personal grocery-list app for me, my partner and relatives. Started as a hand-wr
 
 1. **Mobile app (APK)** for family members. Plan: wrap the web app with Capacitor (bundled assets, no PWA step). Not a separate native rewrite.
 2. **Sharing via households.** Done (2026-10-17). A list or a meal plan is personal or shared with one of the user's households. Recipes are shared with every user.
-3. **Recipes → grocery list.** Done (2026-10-18), except pantry staples and URL import. A shared recipe database; recipes go on a list one at a time (recipe page) or from a meal plan of lunches and dinners, scaled by servings and merged by ingredient + unit.
+3. **Recipes → grocery list.** Done (2026-10-18), except URL import. A shared recipe database; recipes go on a list one at a time (recipe page) or from a meal plan of lunches and dinners, scaled by servings and merged by ingredient + unit.
 
 The full roadmap and progress are in `docs/improvement-plan.md`. Update its Progress section when a step lands.
 
@@ -34,11 +34,12 @@ One git repo (GitHub: `AntoineHugi/pantryman`). The old `pantryman-web` repo was
 
 - `api/`: axios client and one module per resource (`lists.ts`, `items.ts`, `households.ts`, `recipes.ts`, `mealPlans.ts`, `auth.ts`), plus `types.ts`. Pages call these modules and never call axios directly.
 - `hooks/useGroceryLists.ts`, `hooks/useHouseholds.ts`, `hooks/useRecipes.ts`, `hooks/useMealPlans.ts`: TanStack Query hooks (queries + mutations, optimistic item updates). Pages use these for server data instead of `useEffect` + `useState`.
-- `queryClient.ts`: the query client. Its cache is persisted to localStorage (lists, households, recipes and meal plans only), so the app opens on the last-known data, even offline. `clearQueryCache()` wipes it on logout and on a 401. It also copies each list's detail query into the `['lists']` query, so the item counts on the lists page stay current.
+- `queryClient.ts`: the query client. Its cache is persisted to localStorage (lists, households, recipes, meal plans and usual items only), so the app opens on the last-known data, even offline. `clearQueryCache()` wipes it on logout and on a 401. It also copies each list's detail query into the `['lists']` query, so the item counts on the lists page stay current.
 - `pages/`, `components/`, `contexts/AuthContext.tsx` (token in localStorage; the context object is in `AuthContextValue.ts`), `hooks/`.
 - `contexts/FeedbackContext.tsx` + `hooks/useFeedback.ts`: `toast()` (with an optional action such as Undo) and `confirm()` (a promise-based dialog).
 - The list page: `components/AddItemBar.tsx` (always-visible input; "3 eggs" or "500 g flour" sets the quantity and unit, duplicates update the existing item, suggestion chips) and `components/ItemRow.tsx` (tap the row to tick; edit, quantity and delete are in its editor). Parsing and validation are in `utils/itemInput.ts`. Suggestions come from `hooks/useItemSuggestions.ts`, using an item history kept on the device per user (`utils/itemHistory.ts`) plus the items on the user's other lists.
 - Recipes: `pages/Recipe*Page.tsx`. The edit form takes ingredients as text, one per line, parsed and formatted by `utils/recipeText.ts`. Import takes JSON in the format of `docs/recipe-format.md`. The main sections (Lists / Recipes / Plan) are in the bottom tab bar (`components/layout/TabBar.tsx`).
+- Usual items: `pages/PantryPage.tsx` (in the header menu), `hooks/usePantry.ts`.
 - Meal plans: `pages/MealPlansPage.tsx`, `pages/MealPlanPage.tsx` (a card per day; Move is tap the meal, then tap the target slot), `components/RecipePicker.tsx`. Plan dates are `YYYY-MM-DD` strings handled by `utils/dates.ts` as local dates.
 - Styling: plain CSS. Color tokens are in `index.css` (`:root`) and the components in `App.css`. Touch targets are at least 44px, and hover styles go inside `@media (hover: hover)`. Tailwind is still on the roadmap.
 
@@ -81,6 +82,7 @@ Run the relevant tests, plus the typecheck for frontend changes, before calling 
 - Ktor YAML env syntax is `${VAR}` (required) or `${VAR:default}`.
 - **Frontend UI:** never use `alert()`/`confirm()`, which look out of place in the Android WebView. Use `useFeedback()`. Prefer Undo in a toast over a confirmation for reversible deletes. Back buttons are `<BackLink>` (a link to `/lists`), not `navigate(-1)`, which goes nowhere after a deep link or a reload. Wrap anything that waits on the server in `<SlowServerNotice active={...}>`: the Render backend can take ~50 s to wake.
 - **Items** have a decimal `quantity` and an optional `unit` (null = a count). Recipes are added to a list by `POST /lists/{listId}/recipes`; the merge rules are in `services/ListMerge.kt` (pure, unit-tested in `ListMergeTest`). Item `PATCH` reads a missing `unit` as unchanged and `""` as no unit.
+- **Usual items** (`pantry_items`, `PantryService`): per household, or per user for personal lists. `default` items go on new lists (the create form sends the chosen `defaultItemIds`; omitted means all). `staple` items are skipped when recipes or meal plans add to a list, unless the user ticks them. A list uses its household's items, or its owner's if personal.
 - **Meal plans:** confirming a plan creates the list "Meal plan - 20.10/26.10" (`MealPlanService.listName`) and stores its ID in `meal_plans.list_id`. The plan isn't synced with the list afterwards.
 - **Recipes** are shared with every user: reads aren't scoped, but only the creator (`recipes.created_by`) can edit or delete one. The unit list is in `RecipeService.UNITS`, `utils/recipeText.ts` and `docs/recipe-format.md`; keep the three in step.
 - **JSON defaults:** the server's `Json` doesn't encode default values, so a response field with a default is left out when it equals the default. Give response models no defaults, or mark fields `@EncodeDefault`.

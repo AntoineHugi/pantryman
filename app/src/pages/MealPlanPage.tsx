@@ -90,7 +90,7 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
     const count = plan.entries.length;
     const confirmed = await confirm({
       title: "Create the grocery list?",
-      message: `A new list with the ingredients of ${count} ${count === 1 ? "meal" : "meals"}, ${household ? `shared with ${household.name}` : "just for you"}. Optional ingredients are left out.`,
+      message: `A new list with the ingredients of ${count} ${count === 1 ? "meal" : "meals"}, ${household ? `shared with ${household.name}` : "just for you"}, plus your usual items. Optional ingredients and what's always at home are left out.`,
       confirmLabel: "Create list",
     });
     if (!confirmed) return;

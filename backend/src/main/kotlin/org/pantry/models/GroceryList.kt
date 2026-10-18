@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 data class CreateGroceryListRequest(
     val name: String,
     // Omit for a personal list
-    val householdId: String? = null
+    val householdId: String? = null,
+    // The pantry defaults to put on the new list. Omitted (older app versions): all of them.
+    val defaultItemIds: List<String>? = null
 )
 
 @Serializable

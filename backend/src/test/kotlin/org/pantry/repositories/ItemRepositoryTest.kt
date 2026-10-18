@@ -12,6 +12,7 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.pantry.postgres.tables.ItemTable
 import org.pantry.postgres.tables.MealPlanEntryTable
 import org.pantry.postgres.tables.MealPlanTable
+import org.pantry.postgres.tables.PantryItemTable
 import org.pantry.postgres.tables.RecipeIngredientTable
 import org.pantry.postgres.tables.RecipeStepTable
 import org.pantry.postgres.tables.RecipeTable
@@ -50,7 +51,7 @@ class ItemRepositoryTest {
         transaction {
             SchemaUtils.create(
                 UserTable, HouseholdTable, HouseholdMemberTable, GroceryListTable, ItemTable,
-                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable
+                RecipeTable, RecipeIngredientTable, RecipeStepTable, RecipeTagTable, MealPlanTable, MealPlanEntryTable, PantryItemTable
             )
         }
         // Lists reference users, so the owner needs a real user row

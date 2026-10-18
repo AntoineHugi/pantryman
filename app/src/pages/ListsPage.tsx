@@ -5,6 +5,8 @@ import type { GroceryList } from "../api/types";
 import SlowServerNotice from "../components/SlowServerNotice";
 import { useCreateList, useLists } from "../hooks/useGroceryLists";
 import { useHouseholds } from "../hooks/useHouseholds";
+import { usePantry } from "../hooks/usePantry";
+import { formatItemQuantity } from "../utils/itemInput";
 import "../App.css";
 
 function listSummary(list: GroceryList) {
@@ -24,12 +26,24 @@ function ListsPage() {
   const { data: households = [], isSuccess: householdsLoaded } = useHouseholds();
   const householdId = newListHouseholdId ?? households[0]?.id ?? "";
   const createList = useCreateList();
+  // The usual items of the new list's household (or the user's own): all ticked to start with
+  const { data: pantry = [] } = usePantry(householdId || null, showForm);
+  const defaults = pantry.filter((item) => item.kind === "default");
+  const [leftOut, setLeftOut] = useState<Set<string>>(new Set());
+  const toggleDefault = (id: string) =>
+    setLeftOut((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const handleAddList = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newListName.trim()) return;
 
-    createList.mutate({ name: newListName.trim(), householdId: householdId || null }, {
+    const defaultItemIds = defaults.filter((item) => !leftOut.has(item.id)).map((item) => item.id);
+    createList.mutate({ name: newListName.trim(), householdId: householdId || null, defaultItemIds }, {
       // Straight into the new list, ready to add items
       onSuccess: (list) => navigate(`/lists/${list.id}/items`),
     });
@@ -79,6 +93,26 @@ function ListsPage() {
             <option value="">Personal (only me)</option>
           </select>
         </div>
+      )}
+      {defaults.length > 0 ? (
+        <div className="form-group">
+          <span className="form-label">Start with</span>
+          <ul className="ingredient-checklist">
+            {defaults.map((item) => (
+              <li key={item.id}>
+                <label>
+                  <input type="checkbox" checked={!leftOut.has(item.id)} onChange={() => toggleDefault(item.id)} />
+                  <span className="pantry-name">{item.name}</span>
+                  <span className="item-quantity">{formatItemQuantity(item)}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="form-hint">
+          Tip: <Link to="/pantry">usual items</Link> like milk can go on every new list.
+        </p>
       )}
       {createList.isError && <p className="form-error">{getErrorMessage(createList.error, "Could not create list")}</p>}
       <div className="form-actions">

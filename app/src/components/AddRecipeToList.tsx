@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../api/client';
 import type { Recipe } from '../api/types';
 import { useFeedback } from '../hooks/useFeedback';
 import { useAddRecipeToList, useLists } from '../hooks/useGroceryLists';
+import { useStapleNames } from '../hooks/usePantry';
+import { normalizeItemName } from '../utils/itemInput';
 import { formatQuantity } from '../utils/recipeText';
 import SlowServerNotice from './SlowServerNotice';
 
@@ -39,24 +41,27 @@ export default function AddRecipeToList({
 }) {
   const navigate = useNavigate();
   const { toast } = useFeedback();
-  const { data: lists = [], isPending: listsPending } = useLists();
+  const { data: lists = [], isPending: listsPending, isFetching: listsFetching, refetch: refetchLists } = useLists();
+  // The lists may be an old saved copy (e.g. right after creating one): check when the panel opens
+  useEffect(() => {
+    refetchLists();
+  }, [refetchLists]);
   const addRecipe = useAddRecipeToList();
-  const [selected, setSelected] = useState(
-    () => new Set(recipe.ingredients.flatMap((ingredient, index) => (ingredient.optional ? [] : [index])))
-  );
   const [chosenListId, setChosenListId] = useState<string | null>(null);
   const remembered = rememberedListId();
   const listId =
     chosenListId ?? (lists.some((l) => l.id === remembered) ? remembered : null) ?? lists[0]?.id ?? '';
   const scale = servings / recipe.servings;
+  // Staples of the chosen list's household (salt...) start unticked, like optional ingredients
+  const staples = useStapleNames(lists.find((l) => l.id === listId));
+  const isStaple = (index: number) => staples.has(normalizeItemName(recipe.ingredients[index].name));
+  // What the user ticked or unticked; everything else follows the defaults above
+  const [toggled, setToggled] = useState<Map<number, boolean>>(new Map());
+  const isSelected = (index: number) => toggled.get(index) ?? !(recipe.ingredients[index].optional || isStaple(index));
+  const selected = new Set(recipe.ingredients.flatMap((_, index) => (isSelected(index) ? [index] : [])));
 
   const toggle = (index: number) => {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
+    setToggled((current) => new Map(current).set(index, !isSelected(index)));
   };
 
   const handleAdd = () => {
@@ -82,7 +87,7 @@ export default function AddRecipeToList({
     );
   };
 
-  if (!listsPending && lists.length === 0) {
+  if (!listsPending && !listsFetching && lists.length === 0) {
     return (
       <div className="add-to-list">
         <p>
@@ -107,6 +112,7 @@ export default function AddRecipeToList({
               <span>
                 {ingredient.name}
                 {ingredient.optional && <span className="muted"> (optional)</span>}
+                {isStaple(index) && <span className="muted"> (at home)</span>}
               </span>
             </label>
           </li>

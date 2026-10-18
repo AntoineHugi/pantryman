@@ -46,4 +46,5 @@ fun Application.module() {
     householdsApi()
     recipesApi()
     mealPlansApi()
+    pantryApi()
 }

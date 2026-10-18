@@ -1163,3 +1163,41 @@ textarea.form-input {
     background: rgba(37, 36, 34, 0.04);
   }
 }
+
+/* Usual items (pantry) */
+.pantry-section {
+  margin-bottom: 1rem;
+}
+
+.pantry-section h2 {
+  margin: 0 0 0.25rem;
+}
+
+.pantry-section .add-item-form .form-input {
+  background: var(--surface-strong);
+}
+
+.pantry-list {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pantry-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pantry-list li:last-child {
+  border-bottom: none;
+}
+
+.pantry-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}

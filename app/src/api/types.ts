@@ -51,6 +51,8 @@ export interface User {
   export interface CreateListRequest {
     name: string;
     householdId?: string | null;
+    // Pantry defaults to put on the new list; omitted = all of them
+    defaultItemIds?: string[];
   }
 
   export interface HouseholdMember {
@@ -177,4 +179,26 @@ export interface User {
   export interface ConfirmMealPlanResponse {
     plan: MealPlan;
     list: GroceryList;
+  }
+
+  // Usual items of a household, or the user's own for personal lists
+  export type PantryKind = 'default' | 'staple';
+
+  export interface PantryItem {
+    id: string;
+    // null for personal items
+    householdId: string | null;
+    name: string;
+    // default: added to new lists. staple: always at home, so recipes skip it.
+    kind: PantryKind;
+    quantity: number;
+    unit: string | null;
+  }
+
+  export interface AddPantryItemRequest {
+    householdId: string | null;
+    name: string;
+    kind: PantryKind;
+    quantity?: number;
+    unit?: string | null;
   }

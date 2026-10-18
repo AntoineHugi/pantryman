@@ -62,6 +62,9 @@ export default function Header() {
                 <button className="dropdown-item" role="menuitem" onClick={() => go('/lists')}>
                   Lists
                 </button>
+                <button className="dropdown-item" role="menuitem" onClick={() => go('/pantry')}>
+                  Usual items
+                </button>
                 <button className="dropdown-item" role="menuitem" onClick={() => go('/households')}>
                   Households
                 </button>
