@@ -108,14 +108,13 @@ class ItemRepositoryTest {
         groceryRepo.create(listId, "Groceries", testUserId)
         repo.create(id, listId, "Eggs", 12, false)
 
-        val updated = repo.update(listId, id, "Green Apples", 10, true, true)
+        val updated = repo.update(listId, id, "Green Apples", 10, true)
         assertTrue(updated)
 
         val result = checkNotNull(repo.getById(listId, id))
         assertEquals("Green Apples", result.name)
         assertEquals(10, result.quantity)
         assertTrue(result.isChecked)
-        assertTrue(result.isFavorite)
     }
 
     @Test
@@ -142,7 +141,7 @@ class ItemRepositoryTest {
         repo.create(otherItemId, otherListId, "Their milk", 1, false)
 
         assertNull(repo.getById(ownListId, otherItemId))
-        assertFalse(repo.update(ownListId, otherItemId, "Hacked", 1, true, true))
+        assertFalse(repo.update(ownListId, otherItemId, "Hacked", 1, true))
         assertFalse(repo.delete(ownListId, otherItemId))
         assertEquals("Their milk", repo.getById(otherListId, otherItemId)?.name)
     }
@@ -154,13 +153,32 @@ class ItemRepositoryTest {
         val names = listOf("Milk", "Bread", "Eggs", "Butter")
         val ids = names.map { name -> UUID.randomUUID().also { repo.create(it, listId, name, 1, false) } }
 
-        repo.update(listId, ids[0], "Milk", 1, true, false)
-        repo.update(listId, ids[2], "Eggs", 6, true, false)
+        repo.update(listId, ids[0], "Milk", 1, true)
+        repo.update(listId, ids[2], "Eggs", 6, true)
 
         assertEquals(names, repo.getByListId(listId).map { it.name })
     }
 
     private fun createUser(id: UUID) {
         UserRepository().create(id, "$id@example.com", "hash", UUID.randomUUID())
+    }
+
+    @Test
+    fun `8 - deleteMany deletes only the given items of the given list`() {
+        val listId = UUID.randomUUID()
+        val otherListId = UUID.randomUUID()
+        groceryRepo.create(listId, "Mine", testUserId)
+        groceryRepo.create(otherListId, "Theirs", UUID.randomUUID().also { createUser(it) })
+        val milk = UUID.randomUUID().also { repo.create(it, listId, "Milk", 1, false) }
+        val eggs = UUID.randomUUID().also { repo.create(it, listId, "Eggs", 1, false) }
+        val bread = UUID.randomUUID().also { repo.create(it, listId, "Bread", 1, false) }
+        val theirs = UUID.randomUUID().also { repo.create(it, otherListId, "Their milk", 1, false) }
+
+        val deleted = repo.deleteMany(listId, listOf(milk, eggs, theirs, UUID.randomUUID()))
+
+        assertEquals(2, deleted)
+        assertEquals(listOf("Bread"), repo.getByListId(listId).map { it.name })
+        assertNotNull(repo.getById(listId, bread))
+        assertNotNull(repo.getById(otherListId, theirs))
     }
 }

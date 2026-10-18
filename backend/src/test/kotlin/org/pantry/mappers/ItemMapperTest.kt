@@ -16,13 +16,11 @@ class ItemMapperTest {
         val name = "Milk"
         val quantity = 1
         val isChecked = false
-        val isFavorite = true
 
         every { row[ItemTable.id] } returns id
         every { row[ItemTable.name] } returns name
         every { row[ItemTable.quantity] } returns quantity
         every { row[ItemTable.isChecked] } returns isChecked
-        every { row[ItemTable.isFavorite] } returns isFavorite
 
         val result = row.toItem()
 
@@ -30,6 +28,5 @@ class ItemMapperTest {
         assertEquals(name, result.name)
         assertEquals(quantity, result.quantity)
         assertEquals(isChecked, result.isChecked)
-        assertEquals(isFavorite, result.isFavorite)
     }
 }

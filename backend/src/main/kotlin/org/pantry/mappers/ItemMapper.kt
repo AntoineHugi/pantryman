@@ -9,5 +9,4 @@ fun ResultRow.toItem() = Item(
     name = this[ItemTable.name],
     quantity = this[ItemTable.quantity],
     isChecked = this[ItemTable.isChecked],
-    isFavorite = this[ItemTable.isFavorite],
 )

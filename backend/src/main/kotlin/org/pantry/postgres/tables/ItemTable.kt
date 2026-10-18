@@ -10,7 +10,6 @@ object ItemTable : Table("item_list") {
     val name = varchar("name", 255)
     val quantity = integer("quantity").default(1)
     val isChecked = bool("is_checked").default(false)
-    val isFavorite = bool("is_favorite").default(false)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
 
     val listId = uuid("list_id").references(GroceryListTable.id, onDelete = ReferenceOption.CASCADE)

@@ -514,4 +514,79 @@ class RoutingGroceriesApiIT : KoinTest {
         val error: Map<String, String> = response.body()
         assertEquals("Name cannot be blank", error["error"])
     }
+
+    @Test
+    fun `POST bulk-delete deletes the given items of the list`() = testApplication {
+        setupTestApplication()
+
+        val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+        val listId = UUID.fromString(list.id)
+        val milk = itemRepo.create(UUID.randomUUID(), listId, "milk", 1, false)
+        val eggs = itemRepo.create(UUID.randomUUID(), listId, "eggs", 1, false)
+        itemRepo.create(UUID.randomUUID(), listId, "bread", 1, false)
+
+        val response = jsonClient.post("/lists/${list.id}/items/bulk-delete") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            // An ID already deleted (e.g. by another member) is skipped
+            setBody(mapOf("itemIds" to listOf(milk.id, eggs.id, UUID.randomUUID().toString())))
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body: Map<String, Int> = response.body()
+        assertEquals(2, body["deleted"])
+        assertEquals(listOf("bread"), itemRepo.getByListId(listId).map { it.name })
+    }
+
+    @Test
+    fun `bulk-delete cannot reach another user's items`() = testApplication {
+        setupTestApplication()
+
+        val ownList = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+        val otherUserId = UUID.randomUUID().also { createUser(it) }
+        val otherList = groceryListRepo.create(UUID.randomUUID(), "Theirs", otherUserId)
+        val otherItem = itemRepo.create(UUID.randomUUID(), UUID.fromString(otherList.id), "their milk", 1, false)
+
+        // Their item through my list: not on my list, so nothing is deleted
+        val viaOwnList = jsonClient.post("/lists/${ownList.id}/items/bulk-delete") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            setBody(mapOf("itemIds" to listOf(otherItem.id)))
+        }
+        assertEquals(HttpStatusCode.OK, viaOwnList.status)
+        val body: Map<String, Int> = viaOwnList.body()
+        assertEquals(0, body["deleted"])
+
+        val viaTheirList = jsonClient.post("/lists/${otherList.id}/items/bulk-delete") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            setBody(mapOf("itemIds" to listOf(otherItem.id)))
+        }
+        assertEquals(HttpStatusCode.Forbidden, viaTheirList.status)
+
+        assertNotNull(itemRepo.getById(UUID.fromString(otherList.id), UUID.fromString(otherItem.id)))
+    }
+
+    @Test
+    fun `bulk-delete with no or malformed IDs returns 400`() = testApplication {
+        setupTestApplication()
+
+        val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+        val empty = jsonClient.post("/lists/${list.id}/items/bulk-delete") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            setBody(mapOf("itemIds" to emptyList<String>()))
+        }
+        assertEquals(HttpStatusCode.BadRequest, empty.status)
+        val emptyError: Map<String, String> = empty.body()
+        assertEquals("itemIds cannot be empty", emptyError["error"])
+
+        val malformed = jsonClient.post("/lists/${list.id}/items/bulk-delete") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            setBody(mapOf("itemIds" to listOf("not-a-uuid")))
+        }
+        assertEquals(HttpStatusCode.BadRequest, malformed.status)
+        val malformedError: Map<String, String> = malformed.body()
+        assertEquals("Invalid item ID", malformedError["error"])
+    }
 }

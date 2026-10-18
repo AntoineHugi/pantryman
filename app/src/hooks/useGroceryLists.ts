@@ -143,12 +143,12 @@ export function useDeleteItem(listId: string) {
   );
 }
 
-// "Clear ticked items": no bulk endpoint, so one delete per item
+// "Clear ticked items": the IDs shown as ticked, deleted in one request
 export function useDeleteItems(listId: string) {
   return useOptimisticItemMutation(
     listId,
     async (itemIds: string[]) => {
-      await Promise.all(itemIds.map((itemId) => itemsApi.delete(listId, itemId)));
+      await itemsApi.deleteMany(listId, itemIds);
     },
     (items, itemIds) => items.filter((it) => !itemIds.includes(it.id))
   );

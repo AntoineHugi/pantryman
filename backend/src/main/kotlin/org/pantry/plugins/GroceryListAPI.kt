@@ -8,6 +8,8 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
+import org.pantry.models.BulkDeleteItemsRequest
+import org.pantry.models.BulkDeleteItemsResponse
 import org.pantry.models.CreateGroceryListRequest
 import org.pantry.models.CreateItemRequest
 import org.pantry.models.ItemUpdateRequest
@@ -104,6 +106,12 @@ fun Application.groceriesApi() {
                         get {
                             val listId = call.requireAccessibleListId()
                             call.respond(itemService.getAll(listId))
+                        }
+                        // Deletes several items of this list at once ("Clear ticked items")
+                        post("/bulk-delete") {
+                            val listId = call.requireAccessibleListId()
+                            val request = call.receive<BulkDeleteItemsRequest>()
+                            call.respond(BulkDeleteItemsResponse(itemService.deleteMany(listId, request.itemIds)))
                         }
                         route("/{itemId}") {
                             delete {

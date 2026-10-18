@@ -19,4 +19,10 @@ export const itemsApi = {
   delete: async (listId: string, itemId: string): Promise<void> => {
     await apiClient.delete(`/lists/${listId}/items/${itemId}`);
   },
+
+  // All or nothing. IDs no longer on the list are skipped. Returns how many were deleted.
+  deleteMany: async (listId: string, itemIds: string[]): Promise<number> => {
+    const response = await apiClient.post<{ deleted: number }>(`/lists/${listId}/items/bulk-delete`, { itemIds });
+    return response.data.deleted;
+  },
 };

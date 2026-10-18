@@ -36,7 +36,7 @@ class GroceryListServiceTest {
         val groceryList = GroceryList(
             id.toString(),
             "Groceries",
-            listOf(Item(itemId.toString(), "Milk", 2, false, false)),
+            listOf(Item(itemId.toString(), "Milk", 2, false)),
             testUserId.toString()
         )
 
@@ -55,7 +55,7 @@ class GroceryListServiceTest {
         val groceryList = GroceryList(
             id.toString(),
             "Groceries",
-            listOf(Item(itemId.toString(), "Milk", 2, false, false)),
+            listOf(Item(itemId.toString(), "Milk", 2, false)),
             testUserId.toString()
         )
 
@@ -126,7 +126,7 @@ class GroceryListServiceTest {
         val existing = GroceryList(
             id.toString(),
             "Groceries",
-            listOf(Item(itemId.toString(), "Milk", 2, false, false)),
+            listOf(Item(itemId.toString(), "Milk", 2, false)),
             testUserId.toString()
         )
         val newName = " "

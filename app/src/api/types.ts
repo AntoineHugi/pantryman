@@ -41,7 +41,6 @@ export interface User {
     name: string;
     quantity: number;
     isChecked: boolean;
-    isFavorite: boolean;
   }
   
   export interface CreateListRequest {

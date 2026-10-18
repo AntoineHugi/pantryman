@@ -44,7 +44,7 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
 **Mobile-first UX pass**: done 2026-10-18 (see the log), tested in a phone-sized browser. Still to do:
 - Check it on a real phone with the APK: keyboard behavior when adding several items, the toast above the navigation bar, tap targets.
 - Design system: the CSS is now token-based plain CSS (`index.css` + `App.css`) with no inline styles. Moving to Tailwind or a component library is still worth it before the recipe pages add many new screens.
-- Ideas not done: swipe to delete; a "new version available" check in the APK; a bulk endpoint for "Clear ticked items" (it sends one delete per item now); undo for deleting a whole list.
+- Ideas not done: swipe to delete; a "new version available" check in the APK; undo for deleting a whole list.
 
 ---
 
@@ -102,3 +102,5 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
   - **Lists page:** item counts on each card. Delete moved into the list page. The create form submits on Enter and opens the new list. A hint to create a household when the user has none.
   - **App-wide:** `alert()`/`confirm()` replaced by toasts and a dialog (`useFeedback`). The TanStack Query cache is persisted to localStorage (opens instantly and offline; wiped on logout and on 401). A "server is waking up" notice after 3 s of waiting, and pending states on Login and Signup. `BackLink` replaces `navigate(-1)`. A menu icon replaces the gear, with a Lists entry and Escape to close. Real title, favicon and `theme-color`. The Vite template CSS (dark mode) is gone, inline styles are replaced by classes, touch targets are at least 44px, and hover effects are limited to `(hover: hover)`. Checkboxes and icon buttons are accessible (`aria-label`).
   - **Testing:** typecheck, lint and build pass. A Playwright walkthrough at 390×844 against a local backend covered adding, duplicates, ticking, editing, undo, clearing, suggestions, deleting a list, a second member's tick appearing within about 4 s, an offline reload and logout clearing the cache.
+- **2026-10-18 — `isFavorite` removed.** It was never used in the UI (suggestions use the on-device item history), so `V11` drops `item_list.is_favorite`, and it's gone from the model, the update request and the frontend type. Older clients that still send `isFavorite` keep working because unknown keys are ignored. 132 backend tests pass.
+- **2026-10-18 — Bulk delete for "Clear ticked items".** `POST /lists/{listId}/items/bulk-delete` with `{"itemIds": [...]}` returns `{"deleted": n}`. One statement scoped by `listId` (all or nothing); at most 500 IDs; IDs no longer on the list are skipped. It deletes the IDs the client showed as ticked, not "every ticked item", so an item another member ticks meanwhile isn't deleted unseen. The frontend's `useDeleteItems` uses it instead of one request per item. 138 backend tests pass, including cross-user access.

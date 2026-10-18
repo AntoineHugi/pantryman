@@ -25,7 +25,7 @@ class ItemServiceTest {
 
     @Test
     fun `getAll should return items from repo`() {
-        val items = listOf(Item(UUID.randomUUID().toString(), "Milk", 2, false, false))
+        val items = listOf(Item(UUID.randomUUID().toString(), "Milk", 2, false))
 
         every { repo.getByListId(listId) } returns items
 
@@ -38,7 +38,7 @@ class ItemServiceTest {
     @Test
     fun `getById should return item from repo`() {
         val id = UUID.randomUUID()
-        val item = Item(id.toString(), "Milk", 1, false, false)
+        val item = Item(id.toString(), "Milk", 1, false)
 
         every { repo.getById(listId, id) } returns item
 
@@ -63,7 +63,7 @@ class ItemServiceTest {
     fun `create should call repo with generated UUID and return created item`() {
         val name = "Bread"
         val quantity = 3
-        val createdItem = Item(UUID.randomUUID().toString(), name, quantity, false, false)
+        val createdItem = Item(UUID.randomUUID().toString(), name, quantity, false)
 
         every { repo.create(any(), listId, name, quantity, false) } returns createdItem
 
@@ -77,18 +77,18 @@ class ItemServiceTest {
     @Test
     fun `update should modify and return true`() {
         val id = UUID.randomUUID()
-        val existing = Item(id.toString(), "Eggs", 5, false, false)
-        val update = ItemUpdateRequest(name = "Milk", quantity = 6, isChecked = true, isFavorite = true)
+        val existing = Item(id.toString(), "Eggs", 5, false)
+        val update = ItemUpdateRequest(name = "Milk", quantity = 6, isChecked = true)
 
         every { repo.getById(listId, id) } returns existing
-        every { repo.update(listId, id, "Milk", 6, true, true) } returns true
+        every { repo.update(listId, id, "Milk", 6, true) } returns true
 
         val result = service.update(listId, id, update)
 
         assertTrue(result)
         verify {
             repo.getById(listId, id)
-            repo.update(listId, id, "Milk", 6, true, true)
+            repo.update(listId, id, "Milk", 6, true)
         }
     }
 
@@ -101,13 +101,13 @@ class ItemServiceTest {
 
         assertFalse(result)
         verify(exactly = 1) { repo.getById(listId, id) }
-        verify(exactly = 0) { repo.update(any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { repo.update(any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun `update should throw if name is blank`() {
         val id = UUID.randomUUID()
-        val existing = Item(id.toString(), "Milk", 2, false, false)
+        val existing = Item(id.toString(), "Milk", 2, false)
         every { repo.getById(listId, id) } returns existing
 
         val update = ItemUpdateRequest(name = " ")
@@ -122,7 +122,7 @@ class ItemServiceTest {
     @Test
     fun `update should throw if quantity below 1`() {
         val id = UUID.randomUUID()
-        val existing = Item(id.toString(), "Milk", 2, false, false)
+        val existing = Item(id.toString(), "Milk", 2, false)
         every { repo.getById(listId, id) } returns existing
 
         val update = ItemUpdateRequest(quantity = 0)
@@ -143,5 +143,33 @@ class ItemServiceTest {
 
         assertTrue(result)
         verify(exactly = 1) { repo.delete(listId, id) }
+    }
+
+    @Test
+    fun `deleteMany passes the parsed IDs once each and returns the count`() {
+        val a = UUID.randomUUID()
+        val b = UUID.randomUUID()
+        every { repo.deleteMany(listId, setOf(a, b)) } returns 2
+
+        val result = service.deleteMany(listId, listOf(a.toString(), b.toString(), a.toString()))
+
+        assertEquals(2, result)
+        verify(exactly = 1) { repo.deleteMany(listId, setOf(a, b)) }
+    }
+
+    @Test
+    fun `deleteMany rejects an empty list, too many IDs and malformed IDs`() {
+        val empty = assertThrows<IllegalArgumentException> { service.deleteMany(listId, emptyList()) }
+        assertEquals("itemIds cannot be empty", empty.message)
+
+        val tooMany = List(ItemService.MAX_BULK_DELETE + 1) { UUID.randomUUID().toString() }
+        assertThrows<IllegalArgumentException> { service.deleteMany(listId, tooMany) }
+
+        val malformed = assertThrows<IllegalArgumentException> {
+            service.deleteMany(listId, listOf(UUID.randomUUID().toString(), "not-a-uuid"))
+        }
+        assertEquals("Invalid item ID", malformed.message)
+
+        verify(exactly = 0) { repo.deleteMany(any(), any()) }
     }
 }
