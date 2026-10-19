@@ -132,7 +132,9 @@ fun Application.groceriesApi() {
                                 listId = listId,
                                 name = request.name,
                                 quantity = request.quantity,
-                                unit = request.unit
+                                unit = request.unit,
+                                clientId = request.id,
+                                isChecked = request.isChecked ?: false
                             )
                             call.respond(HttpStatusCode.Created, item)
                         }

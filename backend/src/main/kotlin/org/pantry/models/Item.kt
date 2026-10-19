@@ -17,7 +17,12 @@ data class ItemUpdateRequest(
 data class CreateItemRequest(
     val name: String,
     val quantity: Double,
-    val unit: String? = null
+    val unit: String? = null,
+    // Optional client-made UUID, so an item added offline keeps its ID (later edits refer to it)
+    // and a retried request doesn't add the item twice. Older clients leave it out.
+    val id: String? = null,
+    // For Undo after a delete, which puts a ticked item back ticked
+    val isChecked: Boolean? = null
 )
 
 // Older app versions read quantity as a number and ignore unit and fromRecipes.

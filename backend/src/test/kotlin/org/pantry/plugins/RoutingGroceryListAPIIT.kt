@@ -2,12 +2,15 @@ package org.pantry.plugins
 
 import io.ktor.server.application.*
 import io.ktor.client.call.*
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.testApplication
 import io.ktor.server.testing.ApplicationTestBuilder
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import io.ktor.serialization.kotlinx.json.*
 import org.junit.jupiter.api.assertNotNull
@@ -435,6 +438,62 @@ class RoutingGroceriesApiIT : KoinTest {
             header("Authorization", "Bearer $wrongIssuerToken")
         }
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    private suspend fun ApplicationTestBuilder.postItem(listId: String, request: CreateItemRequest): HttpResponse =
+        jsonClient.post("/lists/$listId/items") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $testToken")
+            setBody(request)
+        }
+
+    @Test
+    fun `POST item keeps a client-made ID, and a retry with it doesn't add the item twice`() = testApplication {
+        setupTestApplication()
+        val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+        val clientId = UUID.randomUUID().toString()
+
+        val first = postItem(list.id, CreateItemRequest(name = "milk", quantity = 1.0, id = clientId))
+        val retry = postItem(list.id, CreateItemRequest(name = "milk", quantity = 1.0, id = clientId))
+
+        assertEquals(HttpStatusCode.Created, first.status)
+        assertEquals(clientId, first.body<Item>().id)
+        assertEquals(clientId, retry.body<Item>().id)
+        assertEquals(listOf(clientId), itemRepo.getByListId(UUID.fromString(list.id)).map { it.id })
+    }
+
+    @Test
+    fun `POST item can restore a ticked item`() = testApplication {
+        setupTestApplication()
+        val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+
+        val response = postItem(list.id, CreateItemRequest(name = "milk", quantity = 1.0, isChecked = true))
+
+        assertTrue(response.body<Item>().isChecked)
+    }
+
+    @Test
+    fun `POST item rejects a client ID used on another user's list`() = testApplication {
+        setupTestApplication()
+        val ownList = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+        val otherUserId = UUID.randomUUID().also { createUser(it) }
+        val otherList = groceryListRepo.create(UUID.randomUUID(), "Theirs", otherUserId)
+        val otherItem = itemRepo.create(UUID.randomUUID(), UUID.fromString(otherList.id), "their milk", 1.0, false)
+
+        val response = postItem(ownList.id, CreateItemRequest(name = "milk", quantity = 1.0, id = otherItem.id))
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertFalse(response.bodyAsText().contains("their milk"))
+        assertEquals("their milk", itemRepo.getById(UUID.fromString(otherList.id), UUID.fromString(otherItem.id))!!.name)
+        assertTrue(itemRepo.getByListId(UUID.fromString(ownList.id)).isEmpty())
+    }
+
+    @Test
+    fun `POST item with a malformed client ID returns 400`() = testApplication {
+        setupTestApplication()
+        val list = groceryListRepo.create(UUID.randomUUID(), "Mine", testUserId)
+
+        assertEquals(HttpStatusCode.BadRequest, postItem(list.id, CreateItemRequest(name = "milk", quantity = 1.0, id = "nope")).status)
     }
 
     @Test

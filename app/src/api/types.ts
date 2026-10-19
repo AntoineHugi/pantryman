@@ -76,6 +76,10 @@ export interface User {
     name: string;
     quantity: number;
     unit?: string | null;
+    // Made by the app, so an item added offline keeps its ID. Older servers ignore it.
+    id?: string;
+    // For Undo, which puts a ticked item back ticked
+    isChecked?: boolean;
   }
 
   export interface AddRecipeToListRequest {

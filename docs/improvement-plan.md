@@ -1,6 +1,6 @@
 # Pantryman — Improvement Plan
 
-_Started 2026-10-14. Last updated 2026-10-18 (invite code expiry): finished work is reduced to the log at the bottom; how things work now is in `CLAUDE.md`._
+_Started 2026-10-14. Last updated 2026-10-19 (offline editing): finished work is reduced to the log at the bottom; how things work now is in `CLAUDE.md`._
 
 Goals:
 
@@ -18,7 +18,7 @@ The base is solid (routes → services → repositories, Flyway, Koin, real inte
 2. ~~`StatusPages`, TanStack Query, Gradle, cleanup, redeploy~~ (done; Tailwind dropped 2026-10-18)
 3. ~~Households/sharing, Capacitor APK, mobile UX pass~~ (done 2026-10-18).
 4. ~~Recipes, meal plan, list generation, staples~~ (done 2026-10-18, except URL import).
-5. Later: URL import, offline editing (offline reading works: the query cache is persisted).
+5. Later: URL import. ~~Offline editing~~ (done 2026-10-19).
 
 ---
 
@@ -79,10 +79,11 @@ Capacitor wraps the built React app (`app/dist`) in a native Android WebView she
 - [x] Step 2 (2026-10-14); Tailwind dropped (2026-10-18)
 - [x] Step 3: households done (2026-10-17), invite link through signup fixed (2026-10-17), Capacitor project + APK workflow set up (2026-10-17), mobile UX pass (2026-10-18), first APK built in CI and tested on a phone (2026-10-18), invite codes expire after 7 days (2026-10-18).
 - [ ] Step 4: recipes section + JSON import (2026-10-18), add to list with decimal quantities and units (2026-10-18), meal plans (2026-10-18), usual items: defaults and staples (2026-10-18). To do: URL import.
-- [ ] Step 5
+- [ ] Step 5: offline editing of list items (2026-10-19). To do: URL import.
 
 ### Done log
 
+- **2026-10-19 — Offline editing of list items.** Adding, ticking, editing, deleting, clearing ticked items and Undo work without a connection. The change shows at once and is queued; the queue is sent in order when the server answers again, also after the app was closed (it's saved with the query cache, which is dropped after a week unused). "Offline" is detected from the browser's events and from requests that get no answer (one bar of signal), after which the server is checked every 10 s (`network.ts`). New items get their ID on the device: `CreateItemRequest` gains optional `id` and `isChecked` (additive; a retry with the same ID returns the existing item, an ID used on another list is a 400), so changes to an item added offline can be queued too, and Undo puts items back with their own IDs. A banner on the lists and list pages says how many changes are waiting. Everything else (creating lists, recipes, meal plans) still needs a connection and now says so instead of a generic error. 189 backend tests pass; a Playwright walkthrough at 390×844 covered offline changes, closing and reopening the app with the server unreachable, the sync order, Undo offline, a rename failing offline, and adding online.
 - **2026-10-18 — Invite codes expire after 7 days.** `V16` adds `households.invite_code_expires_at` (codes that existed got 7 days from the migration). A new code (create, "New code", removing a member) is valid 7 days; joining with an expired code is a 400 ("ask a member for a new one"), except for someone who is already a member. A member who loads the household after expiry gets a new code automatically, so the households page always shows one that works, also in older APKs. `Household` gains `inviteCodeExpiresAt` (additive); the households page shows "Valid until Sun 25 Oct" and the shared invite text says so too. 185 backend tests pass.
 - **2026-10-14 — Step 1 bug fixes.** Item IDOR (item queries now scoped by `listId`), JWT secret without a default, auth rate limiting, 401 interceptor no longer logs out on `/auth/*`, stable ordering (`V7` `created_at`), email normalization, signup rollback when the verification email fails, password minimum 8 on both sides. The test suite, which didn't compile before, was repaired.
 - **2026-10-14 — Monorepo, `CLAUDE.md`, CI.** `pantryman-web` merged in as `app/` with history; Vercel deploys from this repo and the old repo is archived.

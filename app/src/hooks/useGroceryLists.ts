@@ -1,7 +1,16 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type MutateOptions,
+  type MutationOptions,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { listsApi } from '../api/lists';
 import { itemsApi } from '../api/items';
 import type { AddRecipeToListRequest, CreateItemRequest, CreateListRequest, GroceryList, Item } from '../api/types';
+import { isNetworkError, markOffline } from '../network';
+import { newId } from '../utils/ids';
 
 // Query keys. Invalidating `all` also refreshes every list detail.
 export const listKeys = {
@@ -10,13 +19,15 @@ export const listKeys = {
 };
 
 // Shared by every mutation that changes a list's items, so polling can pause while they run
+// (including changes waiting for a connection)
 const itemMutationKey = (listId: string) => ['items', listId] as const;
 
 // How often the open list is refetched, so items ticked by others on a shared list show up
 const LIST_POLL_MS = 5000;
 
-function isChangingItems(queryClient: QueryClient, listId: string) {
-  return queryClient.isMutating({ mutationKey: itemMutationKey(listId) }) > 0;
+// More than `besides` item changes of this list are pending (paused ones count)
+function isChangingItems(queryClient: QueryClient, listId: string, besides = 0) {
+  return queryClient.isMutating({ mutationKey: itemMutationKey(listId) }) > besides;
 }
 
 export function useLists() {
@@ -81,93 +92,132 @@ export function useSetListHousehold(listId: string) {
   });
 }
 
-export function useAddItem(listId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: itemMutationKey(listId),
-    mutationFn: (data: CreateItemRequest) => itemsApi.create(listId, data),
-    onSuccess: (item) => {
-      queryClient.setQueryData<GroceryList>(listKeys.detail(listId), (list) =>
-        list ? { ...list, items: [...list.items, item] } : list
+/**
+ * Changes to a list's items work offline. Each change is a plain object, applied to the cached list
+ * at once and sent in order (one queue, `scope`). Without a connection the queue pauses, is saved
+ * with the query cache (`queryClient.ts`) and is sent once the server answers again, even after the
+ * app was closed. New items get their ID here, so later changes to them can be queued too.
+ */
+export type ItemChange =
+  | { type: 'add'; listId: string; item: Item }
+  | { type: 'update'; listId: string; itemId: string; data: Partial<Item> }
+  | { type: 'delete'; listId: string; itemIds: string[] }
+  // Undo for deleting: the same items back, with their IDs (so the order stays and a retry can't add them twice)
+  | { type: 'restore'; listId: string; items: Item[] };
+
+// Each request can be sent twice without harm (a retry after the answer was lost)
+async function sendItemChange(change: ItemChange): Promise<void> {
+  const { listId } = change;
+  switch (change.type) {
+    case 'add': {
+      const { id, name, quantity, unit } = change.item;
+      await itemsApi.create(listId, { id, name, quantity, unit });
+      return;
+    }
+    case 'update':
+      await itemsApi.update(listId, change.itemId, change.data);
+      return;
+    case 'delete':
+      // Skips items that are already gone
+      await itemsApi.deleteMany(listId, change.itemIds);
+      return;
+    case 'restore':
+      await Promise.all(
+        change.items.map(({ id, name, quantity, unit, isChecked }) =>
+          itemsApi.create(listId, { id, name, quantity, unit, isChecked })
+        )
       );
-      return queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
-    },
-  });
+  }
 }
 
-// Applies `change` to the cached list right away, and rolls back if the request fails.
-function useOptimisticItemMutation<TVars>(
-  listId: string,
-  mutationFn: (vars: TVars) => Promise<void>,
-  change: (items: Item[], vars: TVars) => Item[]
-) {
-  const queryClient = useQueryClient();
-  const key = listKeys.detail(listId);
-  return useMutation({
-    mutationKey: itemMutationKey(listId),
-    mutationFn,
-    onMutate: async (vars: TVars) => {
+function applyItemChange(items: Item[], change: ItemChange): Item[] {
+  switch (change.type) {
+    case 'add':
+      return [...items.filter((it) => it.id !== change.item.id), change.item];
+    case 'update':
+      return items.map((it) => (it.id === change.itemId ? { ...it, ...change.data } : it));
+    case 'delete':
+      return items.filter((it) => !change.itemIds.includes(it.id));
+    case 'restore': {
+      const ids = new Set(change.items.map((it) => it.id));
+      return [...items.filter((it) => !ids.has(it.id)), ...change.items];
+    }
+  }
+}
+
+// Registered for every item mutation (`setMutationDefaults(['items'], ...)` in main.tsx), so a change
+// restored from storage after a restart knows how to send itself.
+export function itemMutationDefaults(queryClient: QueryClient): MutationOptions<void, Error, ItemChange> {
+  return {
+    mutationFn: sendItemChange,
+    scope: { id: 'items' },
+    networkMode: 'online',
+    // No answer: wait (paused) until the server can be reached. Errors from the server aren't retried.
+    retry: (_failures, error) => {
+      if (!isNetworkError(error)) return false;
+      markOffline();
+      return true;
+    },
+    retryDelay: 1000,
+    onMutate: async (change) => {
+      const key = listKeys.detail(change.listId);
       await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<GroceryList>(key);
       queryClient.setQueryData<GroceryList>(key, (list) =>
-        list ? { ...list, items: change(list.items, vars) } : list
+        list ? { ...list, items: applyItemChange(list.items, change) } : list
       );
-      return { previous };
     },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    // No rollback on error: later queued changes are already on screen, and a snapshot would undo
+    // them too. The refetch after the last change shows what the server has.
+    onSettled: (_data, _error, change) => {
+      if (isChangingItems(queryClient, change.listId, 1)) return;
+      return queryClient.invalidateQueries({ queryKey: listKeys.detail(change.listId) });
     },
-    // When several changes are in flight (ticking items quickly), refetch once after the last,
-    // so an earlier refetch doesn't briefly undo the later ones
-    onSettled: () => {
-      if (queryClient.isMutating({ mutationKey: itemMutationKey(listId) }) === 1) {
-        return queryClient.invalidateQueries({ queryKey: key });
-      }
-    },
-  });
+  };
+}
+
+function useItemChange(listId: string) {
+  return useMutation<void, Error, ItemChange>({ mutationKey: itemMutationKey(listId) });
+}
+
+type ItemMutateOptions = MutateOptions<void, Error, ItemChange>;
+
+export function useAddItem(listId: string) {
+  const { mutate } = useItemChange(listId);
+  return {
+    mutate: (data: CreateItemRequest, options?: ItemMutateOptions) =>
+      mutate({ type: 'add', listId, item: { ...data, id: newId(), isChecked: false } }, options),
+  };
 }
 
 export function useUpdateItem(listId: string) {
-  return useOptimisticItemMutation(
-    listId,
-    ({ itemId, data }: { itemId: string; data: Partial<Item> }) => itemsApi.update(listId, itemId, data),
-    (items, { itemId, data }) => items.map((it) => (it.id === itemId ? { ...it, ...data } : it))
-  );
+  const { mutate } = useItemChange(listId);
+  return {
+    mutate: ({ itemId, data }: { itemId: string; data: Partial<Item> }, options?: ItemMutateOptions) =>
+      mutate({ type: 'update', listId, itemId, data }, options),
+  };
 }
 
 export function useDeleteItem(listId: string) {
-  return useOptimisticItemMutation(
-    listId,
-    (itemId: string) => itemsApi.delete(listId, itemId),
-    (items, itemId) => items.filter((it) => it.id !== itemId)
-  );
+  const { mutate } = useItemChange(listId);
+  return {
+    mutate: (itemId: string, options?: ItemMutateOptions) => mutate({ type: 'delete', listId, itemIds: [itemId] }, options),
+  };
 }
 
 // "Clear ticked items": the IDs shown as ticked, deleted in one request
 export function useDeleteItems(listId: string) {
-  return useOptimisticItemMutation(
-    listId,
-    async (itemIds: string[]) => {
-      await itemsApi.deleteMany(listId, itemIds);
-    },
-    (items, itemIds) => items.filter((it) => !itemIds.includes(it.id))
-  );
+  const { mutate } = useItemChange(listId);
+  return {
+    mutate: (itemIds: string[], options?: ItemMutateOptions) => mutate({ type: 'delete', listId, itemIds }, options),
+  };
 }
 
-// Undo for deleting: adds the items back (as new items, so they move to the end of the list)
+// Undo for deleting
 export function useRestoreItems(listId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: itemMutationKey(listId),
-    mutationFn: (items: Item[]) =>
-      Promise.all(
-        items.map(async (item) => {
-          const created = await itemsApi.create(listId, { name: item.name, quantity: item.quantity, unit: item.unit });
-          if (item.isChecked) await itemsApi.update(listId, created.id, { isChecked: true });
-        })
-      ),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) }),
-  });
+  const { mutate } = useItemChange(listId);
+  return {
+    mutate: (items: Item[], options?: ItemMutateOptions) => mutate({ type: 'restore', listId, items }, options),
+  };
 }
 
 // From a recipe page: the list isn't open, so there is no optimistic update; the answer has the new list

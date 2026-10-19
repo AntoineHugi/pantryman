@@ -5,6 +5,7 @@ import type { Item } from "../api/types";
 import AddItemBar from "../components/AddItemBar";
 import BackLink from "../components/BackLink";
 import ItemRow, { type ItemChanges } from "../components/ItemRow";
+import OfflineBanner from "../components/OfflineBanner";
 import SlowServerNotice from "../components/SlowServerNotice";
 import { ChevronIcon, PencilIcon } from "../components/icons";
 import { useAuth } from "../hooks/useAuth";
@@ -220,7 +221,7 @@ function ListDetailsPage() {
         )
       )}
 
-      {error && <p className="offline-banner">Can't reach the server. Showing the last saved copy.</p>}
+      <OfflineBanner error={error} />
 
       <AddItemBar list={list} />
 

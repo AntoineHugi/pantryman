@@ -13,10 +13,30 @@ class ItemService(
 
     fun getById(listId: UUID, id: UUID): Item? = repo.getById(listId, id)
 
-    fun create(listId: UUID, name: String, quantity: Double, unit: String? = null): Item {
-        val initBool = false
-        val newId = UUID.randomUUID()
-        return repo.create(newId, listId, name, validQuantity(quantity), initBool, validUnit(unit))
+    /**
+     * [clientId]: an ID chosen by the app (see CreateItemRequest). If an item with that ID is
+     * already on this list, the request is a retry of one that went through: that item is returned.
+     */
+    fun create(
+        listId: UUID,
+        name: String,
+        quantity: Double,
+        unit: String? = null,
+        clientId: String? = null,
+        isChecked: Boolean = false
+    ): Item {
+        val id = clientId?.let {
+            try {
+                UUID.fromString(it)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid item ID")
+            }
+        }
+        if (id != null) {
+            repo.getById(listId, id)?.let { return it }
+            if (repo.exists(id)) throw IllegalArgumentException("Item ID already in use")
+        }
+        return repo.create(id ?: UUID.randomUUID(), listId, name, validQuantity(quantity), isChecked, validUnit(unit))
     }
 
     fun update(listId: UUID, id: UUID, update: ItemUpdateRequest): Boolean {

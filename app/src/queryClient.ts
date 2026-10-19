@@ -9,9 +9,12 @@ const PERSISTED_QUERIES = ['lists', 'households', 'recipes', 'meal-plans', 'pant
 
 // Refetches when the window regains focus, so changes from other devices show up.
 // gcTime matches the persisted cache's age: queries dropped from memory aren't saved either.
+// Mutations fail at once without a connection (and show an error), except item changes, which
+// wait for one (`itemMutationDefaults` in useGroceryLists.ts).
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 10_000, retry: 1, gcTime: WEEK },
+    mutations: { networkMode: 'always' },
   },
 });
 
@@ -27,7 +30,9 @@ queryClient.getQueryCache().subscribe((event) => {
 
 // The cache is saved to localStorage, so the app opens on the last-known lists right away
 // (and shows them offline) while the server, which may be asleep, answers. Recipes too, so
-// one opened before can be read in the kitchen without a connection.
+// one opened before can be read in the kitchen without a connection. Item changes still waiting
+// for a connection are saved with it and sent after the next start (main.tsx). After a week
+// without the app being opened, all of it is dropped (maxAge), queued changes included.
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   persister: createSyncStoragePersister({ storage: window.localStorage, key: PERSIST_KEY }),
   maxAge: WEEK,
@@ -36,6 +41,7 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   dehydrateOptions: {
     shouldDehydrateQuery: (query) =>
       query.state.status === 'success' && PERSISTED_QUERIES.includes(String(query.queryKey[0])),
+    shouldDehydrateMutation: (mutation) => mutation.state.isPaused && mutation.options.mutationKey?.[0] === 'items',
   },
 };
 

@@ -35,6 +35,9 @@ apiClient.interceptors.response.use(
 // Extracts the backend's `{ error: "..." }` message from a failed request.
 export function getErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError<{ error?: string }>(err)) {
+    if (!err.response && err.code === axios.AxiosError.ERR_NETWORK) {
+      return `${fallback}: no connection. Try again when you're online.`;
+    }
     return err.response?.data?.error || fallback;
   }
   return fallback;

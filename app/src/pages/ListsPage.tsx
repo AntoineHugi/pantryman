@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
 import type { GroceryList } from "../api/types";
+import OfflineBanner from "../components/OfflineBanner";
 import SlowServerNotice from "../components/SlowServerNotice";
 import { useCreateList, useLists } from "../hooks/useGroceryLists";
 import { useHouseholds } from "../hooks/useHouseholds";
@@ -133,9 +134,7 @@ function ListsPage() {
       </div>
 
       {error && lists.length === 0 && <p className="form-error">{getErrorMessage(error, "Could not load grocery lists")}</p>}
-      {error && lists.length > 0 && (
-        <p className="offline-banner">Can't reach the server. Showing the last saved copy.</p>
-      )}
+      {lists.length > 0 && <OfflineBanner error={error} />}
 
       {isPending && (
         <>

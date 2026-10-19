@@ -29,6 +29,11 @@ class ItemRepository {
             .singleOrNull()
     }
 
+    // On any list: client-made IDs must not collide with another list's items
+    fun exists(id: UUID): Boolean = transaction {
+        ItemTable.select(ItemTable.id).where { ItemTable.id eq id }.any()
+    }
+
     fun create(newId: UUID, listId: UUID, name: String, quantity: Double, initBool : Boolean, unit: String? = null): Item = transaction {
         ItemTable.insert {
             it[id] = newId
