@@ -1,7 +1,8 @@
 name: Android APK
 
 # Builds the signed APK. Run it by hand (Actions → Android APK → Run workflow), or push a tag
-# like v1.2.0 to also attach the APK to a GitHub release.
+# like v1.2.0 to also attach the APK to a GitHub release. Installed apps offer the latest release
+# as an update (src/appUpdate.ts), so only tagged builds reach phones that way.
 on:
   workflow_dispatch:
   push:
@@ -56,7 +57,8 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           ./gradlew assembleRelease --no-daemon
-          mv app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/pantryman-$ANDROID_VERSION_NAME.apk"
+          # The version code at the end is what the app compares to its own (src/appUpdate.ts)
+          mv app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/pantryman-$ANDROID_VERSION_NAME-$ANDROID_VERSION_CODE.apk"
 
       - uses: actions/upload-artifact@v4
         with:

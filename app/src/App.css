@@ -145,6 +145,26 @@
   margin: 0 0 1rem;
 }
 
+/* In the Android app, when a newer APK is on GitHub */
+.update-banner {
+  background: var(--surface-strong);
+  border-left: 4px solid var(--success);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.update-banner-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
 .page-footer-actions {
   margin-top: 2.5rem;
   display: flex;
