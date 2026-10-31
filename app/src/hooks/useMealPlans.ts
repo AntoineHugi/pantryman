@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mealPlansApi } from '../api/mealPlans';
-import type { CreateMealPlanRequest, MealPlan, MealSlot } from '../api/types';
+import type { CreateMealPlanRequest, MealChoice, MealPlan, MealSlot } from '../api/types';
 import { listKeys } from './useGroceryLists';
 
 // Invalidating `all` also refreshes every plan
@@ -71,8 +71,8 @@ function usePlanChange<TVars>(planId: string, mutationFn: (vars: TVars) => Promi
 }
 
 export function useSetMeal(planId: string) {
-  return usePlanChange(planId, ({ slot, recipeId, servings }: { slot: MealSlot; recipeId: string; servings?: number }) =>
-    mealPlansApi.setMeal(planId, slot, recipeId, servings)
+  return usePlanChange(planId, ({ slot, choice, servings }: { slot: MealSlot; choice: MealChoice; servings?: number }) =>
+    mealPlansApi.setMeal(planId, slot, choice, servings)
   );
 }
 

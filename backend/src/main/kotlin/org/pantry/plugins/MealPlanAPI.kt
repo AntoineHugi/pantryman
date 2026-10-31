@@ -64,12 +64,14 @@ fun Application.mealPlansApi() {
                     put("/entries/{date}/{meal}") {
                         val plan = call.requirePlan()
                         val request = call.receive<SetMealRequest>()
-                        val recipeId = try {
-                            UUID.fromString(request.recipeId)
-                        } catch (e: IllegalArgumentException) {
-                            throw IllegalArgumentException("Invalid recipeId")
+                        val recipeId = request.recipeId?.let {
+                            try {
+                                UUID.fromString(it)
+                            } catch (e: IllegalArgumentException) {
+                                throw IllegalArgumentException("Invalid recipeId")
+                            }
                         }
-                        call.respond(mealPlanService.setMeal(plan, call.slot(), recipeId, request.servings))
+                        call.respond(mealPlanService.setMeal(plan, call.slot(), recipeId, request.text, request.servings))
                     }
                     delete("/entries/{date}/{meal}") {
                         val plan = call.requirePlan()

@@ -4,13 +4,13 @@ import { getErrorMessage } from "../api/client";
 import type { RecipeSummary } from "../api/types";
 import SlowServerNotice from "../components/SlowServerNotice";
 import { useRecipes } from "../hooks/useRecipes";
-import { formatMinutes } from "../utils/recipeText";
+import { formatMinutes, formatPeople } from "../utils/recipeText";
 import "../App.css";
 
 function recipeMeta(recipe: RecipeSummary) {
   const minutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
   return [
-    `${recipe.servings} ${recipe.servings === 1 ? "serving" : "servings"}`,
+    formatPeople(recipe.servings),
     minutes > 0 ? formatMinutes(minutes) : null,
     recipe.tags.length > 0 ? recipe.tags.join(", ") : null,
   ]

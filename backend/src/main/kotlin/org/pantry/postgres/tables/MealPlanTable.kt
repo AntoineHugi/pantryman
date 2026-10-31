@@ -27,7 +27,9 @@ object MealPlanEntryTable : Table("meal_plan_entries") {
     val date = date("date")
     // "lunch" or "dinner"
     val meal = varchar("meal", 10)
-    val recipeId = uuid("recipe_id").references(RecipeTable.id, onDelete = ReferenceOption.CASCADE)
+    // A meal is a recipe or free text, never both
+    val recipeId = uuid("recipe_id").references(RecipeTable.id, onDelete = ReferenceOption.CASCADE).nullable()
+    val text = varchar("text", 200).nullable()
     val servings = integer("servings")
 
     override val primaryKey = PrimaryKey(planId, date, meal)

@@ -132,8 +132,18 @@ class MealPlanAPIIT : KoinTest {
         jsonClient.put("/meal-plans/$planId/entries/$date/$meal") {
             contentType(ContentType.Application.Json)
             bearerAuth(token(user))
-            setBody(SetMealRequest(recipeId, servings))
+            setBody(SetMealRequest(recipeId, servings = servings))
         }
+
+    private suspend fun ApplicationTestBuilder.putMeal(user: UUID, planId: String, date: String, meal: String, request: SetMealRequest): HttpResponse =
+        jsonClient.put("/meal-plans/$planId/entries/$date/$meal") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(token(user))
+            setBody(request)
+        }
+
+    private suspend fun ApplicationTestBuilder.setText(user: UUID, planId: String, date: String, meal: String, text: String): HttpResponse =
+        putMeal(user, planId, date, meal, SetMealRequest(text = text))
 
     private suspend fun ApplicationTestBuilder.plan(user: UUID, planId: String): HttpResponse =
         jsonClient.get("/meal-plans/$planId") { bearerAuth(token(user)) }
@@ -224,6 +234,96 @@ class MealPlanAPIIT : KoinTest {
         // Deleting the list lets the plan make a new one
         jsonClient.delete("/lists/${result.list.id}") { bearerAuth(token(alice)) }
         assertNull(plan(alice, plan.id).body<MealPlan>().listId)
+    }
+
+    @Test
+    fun `a slot can hold free text instead of a recipe`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val plan = createPlan(alice, people = 3)
+
+        val response = setText(alice, plan.id, "2026-10-20", "dinner", "  Leftovers ")
+
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        val entry = response.body<MealPlan>().entries.single()
+        assertNull(entry.recipeId)
+        assertEquals("Leftovers", entry.recipeName)
+        assertEquals(3, entry.servings)
+
+        // A recipe replaces the text, and text replaces a recipe
+        setMeal(alice, plan.id, "2026-10-20", "dinner", soup)
+        assertEquals(soup, plan(alice, plan.id).body<MealPlan>().entries.single().recipeId)
+        val replaced: MealPlan = setText(alice, plan.id, "2026-10-20", "dinner", "Pizza").body()
+        assertEquals(listOf("2026-10-20 dinner Pizza 3"), replaced.slots())
+        assertNull(replaced.entries.single().recipeId)
+    }
+
+    @Test
+    fun `a meal needs either a recipe or text`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val plan = createPlan(alice)
+
+        assertEquals(HttpStatusCode.BadRequest, putMeal(alice, plan.id, "2026-10-20", "lunch", SetMealRequest()).status)
+        assertEquals(HttpStatusCode.BadRequest, setText(alice, plan.id, "2026-10-20", "lunch", "   ").status)
+        assertEquals(HttpStatusCode.BadRequest, putMeal(alice, plan.id, "2026-10-20", "lunch", SetMealRequest(soup, "Soup")).status)
+        assertEquals(HttpStatusCode.BadRequest, setText(alice, plan.id, "2026-10-20", "lunch", "x".repeat(201)).status)
+        assertTrue(plan(alice, plan.id).body<MealPlan>().entries.isEmpty())
+    }
+
+    @Test
+    fun `free-text meals move and swap like recipes`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val plan = createPlan(alice, people = 2)
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup)
+        setText(alice, plan.id, "2026-10-21", "dinner", "Restaurant")
+
+        val response = jsonClient.post("/meal-plans/${plan.id}/move") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(token(alice))
+            setBody(MoveMealRequest(MealSlot("2026-10-21", "dinner"), MealSlot("2026-10-20", "lunch")))
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        val moved: MealPlan = response.body()
+        assertEquals(listOf("2026-10-20 lunch Restaurant 2", "2026-10-21 dinner Soup 2"), moved.slots())
+        assertEquals(listOf(null, soup), moved.entries.map { it.recipeId })
+    }
+
+    @Test
+    fun `free-text meals are skipped when confirming`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val plan = createPlan(alice)
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup)
+        setText(alice, plan.id, "2026-10-20", "dinner", "Salmon")
+
+        val response = jsonClient.post("/meal-plans/${plan.id}/confirm") { bearerAuth(token(alice)) }
+
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        assertEquals(listOf("water"), response.body<ConfirmMealPlanResponse>().list.items.map { it.name })
+    }
+
+    @Test
+    fun `a plan with only free-text meals can't be confirmed`() = testApplication {
+        setupTestApplication()
+        val plan = createPlan(alice)
+        setText(alice, plan.id, "2026-10-20", "dinner", "Restaurant")
+
+        val response = jsonClient.post("/meal-plans/${plan.id}/confirm") { bearerAuth(token(alice)) }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertNull(plan(alice, plan.id).body<MealPlan>().listId)
+    }
+
+    @Test
+    fun `other users can't add free text to a plan`() = testApplication {
+        setupTestApplication()
+        val plan = createPlan(alice)
+
+        assertEquals(HttpStatusCode.NotFound, setText(bob, plan.id, "2026-10-20", "dinner", "Restaurant").status)
+        assertTrue(plan(alice, plan.id).body<MealPlan>().entries.isEmpty())
     }
 
     @Test

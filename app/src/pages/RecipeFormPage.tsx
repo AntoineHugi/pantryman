@@ -51,7 +51,7 @@ function RecipeForm({ recipe }: { recipe?: Recipe }) {
 
     if (!name.trim()) return setFormError("Give the recipe a name.");
     if (!Number.isInteger(servingsNumber) || servingsNumber < 1 || servingsNumber > 100) {
-      return setFormError("Servings must be a whole number from 1 to 100.");
+      return setFormError("People must be a whole number from 1 to 100.");
     }
     if (prep === undefined || cook === undefined) return setFormError("Times must be whole minutes.");
     if (parsedIngredients.length === 0) return setFormError("Add at least one ingredient.");
@@ -86,7 +86,7 @@ function RecipeForm({ recipe }: { recipe?: Recipe }) {
 
       <div className="form-row">
         <div className="form-group">
-          <label className="form-label" htmlFor="recipe-servings">Servings</label>
+          <label className="form-label" htmlFor="recipe-servings">Feeds (people)</label>
           <input id="recipe-servings" className="form-input" inputMode="numeric" value={servings} onChange={(e) => setServings(e.target.value)} />
         </div>
         <div className="form-group">

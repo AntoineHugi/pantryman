@@ -816,6 +816,18 @@ body:has(.tab-bar) .toast {
   font-size: 0.95rem;
 }
 
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+}
+
 .form-hint {
   margin: 0 0 0.4rem;
   font-size: 0.875rem;

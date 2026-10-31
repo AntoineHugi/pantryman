@@ -170,6 +170,11 @@ export function formatQuantity(ingredient: { amount: number | null; unit?: strin
   return `${amount} ${unit}`;
 }
 
+// "1 person", "4 people"
+export function formatPeople(count: number): string {
+  return `${count} ${count === 1 ? 'person' : 'people'}`;
+}
+
 // "1 h 15 min", "45 min"
 export function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60);

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
-import type { Meal, MealPlan, MealPlanEntry, MealSlot } from "../api/types";
+import type { Meal, MealChoice, MealPlan, MealPlanEntry, MealSlot } from "../api/types";
 import BackLink from "../components/BackLink";
 import RecipePicker from "../components/RecipePicker";
 import SlowServerNotice from "../components/SlowServerNotice";
@@ -16,6 +16,7 @@ import {
   useSetMeal,
 } from "../hooks/useMealPlans";
 import { addDays, formatDateRange, formatDay, today } from "../utils/dates";
+import { formatPeople } from "../utils/recipeText";
 import "../App.css";
 
 const MEALS: { meal: Meal; label: string }[] = [
@@ -24,6 +25,9 @@ const MEALS: { meal: Meal; label: string }[] = [
 ];
 
 const sameSlot = (a: MealSlot | null, b: MealSlot) => !!a && a.date === b.date && a.meal === b.meal;
+
+const choiceOf = (entry: MealPlanEntry): MealChoice =>
+  entry.recipeId ? { recipeId: entry.recipeId } : { text: entry.recipeName };
 
 function MealPlanView({ plan }: { plan: MealPlan }) {
   const navigate = useNavigate();
@@ -38,7 +42,7 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
   const [openSlot, setOpenSlot] = useState<MealSlot | null>(null);
   // The meal being moved: the next slot tapped is where it goes
   const [moving, setMoving] = useState<MealPlanEntry | null>(null);
-  // The slot the recipe picker fills
+  // The slot the meal picker fills
   const [picking, setPicking] = useState<MealSlot | null>(null);
 
   const showError = (fallback: string) => (err: unknown) => toast({ message: getErrorMessage(err, fallback), isError: true });
@@ -46,6 +50,7 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
   const entryAt = (slot: MealSlot) => plan.entries.find((e) => sameSlot(e, slot));
   const household = households.find((h) => h.id === plan.householdId);
   const isPast = (date: string) => date < today();
+  const recipeMeals = plan.entries.filter((e) => e.recipeId).length;
 
   const handleSlotTap = (slot: MealSlot) => {
     if (moving) {
@@ -59,11 +64,11 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
     else setPicking(slot);
   };
 
-  const handlePick = (recipeId: string) => {
+  const handlePick = (choice: MealChoice) => {
     if (!picking) return;
     const current = entryAt(picking);
     setMeal.mutate(
-      { slot: picking, recipeId, servings: current?.servings },
+      { slot: picking, choice, servings: current?.servings },
       { onError: showError("Could not add the meal") }
     );
     setPicking(null);
@@ -72,7 +77,7 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
   const changeServings = (entry: MealPlanEntry, delta: number) => {
     const servings = entry.servings + delta;
     if (servings < 1 || servings > 100) return;
-    setMeal.mutate({ slot: entry, recipeId: entry.recipeId, servings }, { onError: showError("Could not change the servings") });
+    setMeal.mutate({ slot: entry, choice: choiceOf(entry), servings }, { onError: showError("Could not change the number of people") });
   };
 
   const handleRemove = (entry: MealPlanEntry) => {
@@ -82,15 +87,16 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
       message: `Removed ${entry.recipeName}`,
       actionLabel: "Undo",
       onAction: () =>
-        setMeal.mutate({ slot: entry, recipeId: entry.recipeId, servings: entry.servings }, { onError: showError("Could not put the meal back") }),
+        setMeal.mutate({ slot: entry, choice: choiceOf(entry), servings: entry.servings }, { onError: showError("Could not put the meal back") }),
     });
   };
 
   const handleConfirm = async () => {
-    const count = plan.entries.length;
+    const count = recipeMeals;
+    const skipped = plan.entries.length - count;
     const confirmed = await confirm({
       title: "Create the grocery list?",
-      message: `A new list with the ingredients of ${count} ${count === 1 ? "meal" : "meals"}, ${household ? `shared with ${household.name}` : "just for you"}, plus your usual items. Optional ingredients and what's always at home are left out.`,
+      message: `A new list with the ingredients of ${count} ${count === 1 ? "meal" : "meals"}, ${household ? `shared with ${household.name}` : "just for you"}, plus your usual items. Optional ingredients and what's always at home are left out${skipped > 0 ? `, and so ${skipped === 1 ? "is 1 meal" : `are ${skipped} meals`} without a recipe` : ""}.`,
       confirmLabel: "Create list",
     });
     if (!confirmed) return;
@@ -144,7 +150,7 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
                     {entry ? (
                       <span className="plan-slot-meal">
                         <span className="plan-slot-name">{entry.recipeName}</span>
-                        <span className="recipe-card-meta">{entry.servings} {entry.servings === 1 ? "serving" : "servings"}</span>
+                        {entry.recipeId && <span className="recipe-card-meta">{formatPeople(entry.servings)}</span>}
                       </span>
                     ) : (
                       <span className="plan-slot-empty">{moving ? "Move here" : "+ Add a meal"}</span>
@@ -152,15 +158,17 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
                   </button>
                   {entry && isOpen && (
                     <div className="plan-slot-actions">
-                      <div className="stepper" aria-label="Servings">
-                        <button type="button" onClick={() => changeServings(entry, -1)} disabled={entry.servings <= 1} aria-label="Fewer servings">−</button>
-                        <span className="servings-count">{entry.servings} {entry.servings === 1 ? "serving" : "servings"}</span>
-                        <button type="button" onClick={() => changeServings(entry, 1)} disabled={entry.servings >= 100} aria-label="More servings">+</button>
-                      </div>
+                      {entry.recipeId && (
+                        <div className="stepper" aria-label="People">
+                          <button type="button" onClick={() => changeServings(entry, -1)} disabled={entry.servings <= 1} aria-label="Fewer people">−</button>
+                          <span className="servings-count">{formatPeople(entry.servings)}</span>
+                          <button type="button" onClick={() => changeServings(entry, 1)} disabled={entry.servings >= 100} aria-label="More people">+</button>
+                        </div>
+                      )}
                       <div className="form-actions">
                         <button className="btn btn-secondary btn-small" onClick={() => { setMoving(entry); setOpenSlot(null); }}>Move</button>
                         <button className="btn btn-secondary btn-small" onClick={() => setPicking(slot)}>Change</button>
-                        <Link className="btn btn-secondary btn-small" to={`/recipes/${entry.recipeId}`}>Recipe</Link>
+                        {entry.recipeId && <Link className="btn btn-secondary btn-small" to={`/recipes/${entry.recipeId}?servings=${entry.servings}`}>Recipe</Link>}
                         <button className="btn btn-danger-outline btn-small" onClick={() => handleRemove(entry)}>Remove</button>
                       </div>
                     </div>
@@ -179,7 +187,7 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
             <Link className="btn btn-primary btn-block" to={`/lists/${plan.listId}/items`}>Open the grocery list</Link>
           </>
         ) : (
-          <button className="btn btn-primary btn-block" onClick={handleConfirm} disabled={plan.entries.length === 0 || confirmPlan.isPending}>
+          <button className="btn btn-primary btn-block" onClick={handleConfirm} disabled={recipeMeals === 0 || confirmPlan.isPending}>
             Create grocery list
           </button>
         )}
@@ -192,7 +200,9 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
       {picking && (
         <RecipePicker
           title={`${MEALS.find((m) => m.meal === picking.meal)?.label}, ${formatDay(picking.date)}`}
-          onPick={(recipe) => handlePick(recipe.id)}
+          initialText={entryAt(picking)?.recipeId === null ? entryAt(picking)?.recipeName : undefined}
+          onPick={(recipe) => handlePick({ recipeId: recipe.id })}
+          onText={(text) => handlePick({ text })}
           onClose={() => setPicking(null)}
         />
       )}

@@ -8,6 +8,7 @@ import org.pantry.repositories.GroceryListRepository
 import org.pantry.repositories.ItemRepository
 import org.pantry.repositories.MealPlanRepository
 import org.pantry.repositories.PantryScope
+import org.pantry.repositories.PlannedMeal
 import org.pantry.repositories.RecipeRepository
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -39,11 +40,14 @@ class MealPlanService(
     fun delete(id: UUID, userId: UUID): Boolean = repo.delete(id, userId)
 
     // The route checks access to the plan
-    fun setMeal(plan: MealPlan, slot: MealSlot, recipeId: UUID, servings: Int?): MealPlan {
+    fun setMeal(plan: MealPlan, slot: MealSlot, recipeId: UUID?, text: String?, servings: Int?): MealPlan {
         val (date, meal) = validSlot(plan, slot)
-        recipeRepo.get(recipeId) ?: throw IllegalArgumentException("Recipe not found")
+        val cleanText = text?.trim()?.ifEmpty { null }
+        if ((recipeId == null) == (cleanText == null)) throw IllegalArgumentException("A meal needs a recipe or some text")
+        if (cleanText != null && cleanText.length > MAX_TEXT_LENGTH) throw IllegalArgumentException("Text must be at most $MAX_TEXT_LENGTH characters")
+        if (recipeId != null) recipeRepo.get(recipeId) ?: throw IllegalArgumentException("Recipe not found")
         val id = UUID.fromString(plan.id)
-        repo.setEntry(id, date, meal, recipeId, validServings(servings ?: plan.people, "servings"))
+        repo.setEntry(id, date, meal, PlannedMeal(recipeId, cleanText, validServings(servings ?: plan.people, "servings")))
         return repo.get(id, UUID.fromString(plan.userId))!!
     }
 
@@ -59,17 +63,17 @@ class MealPlanService(
 
     /**
      * Creates the grocery list "Meal plan - 20.10/26.10" from every meal's recipe, scaled to its
-     * servings and merged (ListMerge), shared like the plan. Optional ingredients and pantry
-     * staples are left out; pantry defaults are added, like on any new list.
+     * servings and merged (ListMerge), shared like the plan. Free-text meals, optional ingredients
+     * and pantry staples are left out; pantry defaults are added, like on any new list.
      */
     fun confirm(plan: MealPlan, userId: UUID): GroceryList {
         if (plan.listId != null) throw IllegalArgumentException("This plan already has a grocery list")
-        if (plan.entries.isEmpty()) throw IllegalArgumentException("Add some meals first")
+        if (plan.entries.all { it.recipeId == null }) throw IllegalArgumentException("Add a recipe first")
 
         val scope = plan.householdId?.let { PantryScope.Household(UUID.fromString(it)) } ?: PantryScope.Personal(userId)
         val staples = pantryService.stapleNames(scope)
         val ingredients = plan.entries.flatMap { entry ->
-            val recipe = recipeRepo.get(UUID.fromString(entry.recipeId)) ?: return@flatMap emptyList()
+            val recipe = entry.recipeId?.let { recipeRepo.get(UUID.fromString(it)) } ?: return@flatMap emptyList()
             val scale = entry.servings.toDouble() / recipe.servings
             recipe.ingredients.filter { !it.optional && PantryService.normalize(it.name) !in staples }.map {
                 IngredientToAdd(it.name, it.amount?.let { amount -> amount * scale }, it.unit, recipe.name)
@@ -105,6 +109,7 @@ class MealPlanService(
 
     companion object {
         const val MAX_DAYS = 14
+        const val MAX_TEXT_LENGTH = 200
         private val LIST_DATE = DateTimeFormatter.ofPattern("dd.MM")
 
         fun listName(plan: MealPlan): String =

@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { ConfirmMealPlanResponse, CreateMealPlanRequest, MealPlan, MealSlot } from './types';
+import type { ConfirmMealPlanResponse, CreateMealPlanRequest, MealChoice, MealPlan, MealSlot } from './types';
 
 const slotPath = (planId: string, slot: MealSlot) => `/meal-plans/${planId}/entries/${slot.date}/${slot.meal}`;
 
@@ -24,8 +24,8 @@ export const mealPlansApi = {
   },
 
   // Replaces whatever is in the slot. Servings default to the plan's people.
-  setMeal: async (planId: string, slot: MealSlot, recipeId: string, servings?: number): Promise<MealPlan> => {
-    const response = await apiClient.put<MealPlan>(slotPath(planId, slot), { recipeId, servings });
+  setMeal: async (planId: string, slot: MealSlot, choice: MealChoice, servings?: number): Promise<MealPlan> => {
+    const response = await apiClient.put<MealPlan>(slotPath(planId, slot), { ...choice, servings });
     return response.data;
   },
 

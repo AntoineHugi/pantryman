@@ -23,7 +23,9 @@ data class MealSlot(
 
 @Serializable
 data class SetMealRequest(
-    val recipeId: String,
+    // Either a recipe or free text
+    val recipeId: String? = null,
+    val text: String? = null,
     // Defaults to the plan's people
     val servings: Int? = null
 )
@@ -39,7 +41,9 @@ data class MoveMealRequest(
 data class MealPlanEntry(
     val date: String,
     val meal: String,
-    val recipeId: String,
+    // Null for a free-text meal
+    val recipeId: String?,
+    // The recipe's name or the free text, so older apps can show free-text meals
     val recipeName: String,
     val servings: Int
 )

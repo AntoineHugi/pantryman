@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
 import BackLink from "../components/BackLink";
 import SlowServerNotice from "../components/SlowServerNotice";
@@ -7,20 +7,24 @@ import { useAuth } from "../hooks/useAuth";
 import { useFeedback } from "../hooks/useFeedback";
 import { useDeleteRecipe, useRecipe } from "../hooks/useRecipes";
 import AddRecipeToList from "../components/AddRecipeToList";
-import { formatMinutes, formatQuantity, groupBySection } from "../utils/recipeText";
+import { formatMinutes, formatPeople, formatQuantity, groupBySection } from "../utils/recipeText";
 import "../App.css";
 
 const MAX_SERVINGS = 100;
 
 function RecipePage() {
   const { id = "" } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { userId } = useAuth();
   const { toast, confirm } = useFeedback();
   const { data: recipe, isPending, error } = useRecipe(id);
   const deleteRecipe = useDeleteRecipe();
-  // null = the recipe's own servings
-  const [servings, setServings] = useState<number | null>(null);
+  // null = the recipe's own servings. A meal plan links here with its meal's ?servings=
+  const [servings, setServings] = useState<number | null>(() => {
+    const planned = Number(searchParams.get("servings"));
+    return Number.isInteger(planned) && planned >= 1 && planned <= MAX_SERVINGS ? planned : null;
+  });
   // Choosing which ingredients go on a grocery list
   const [isAdding, setIsAdding] = useState(false);
 
@@ -84,28 +88,34 @@ function RecipePage() {
       <section className="card recipe-section">
         <div className="recipe-section-header">
           <h2>Ingredients</h2>
-          <div className="stepper" aria-label="Servings">
+          <div className="stepper" aria-label="People">
             <button
               type="button"
               onClick={() => setServings(shownServings - 1)}
               disabled={shownServings <= 1}
-              aria-label="Fewer servings"
+              aria-label="Fewer people"
             >
               −
             </button>
             <span className="servings-count" aria-live="polite">
-              {shownServings} {shownServings === 1 ? "serving" : "servings"}
+              {formatPeople(shownServings)}
             </span>
             <button
               type="button"
               onClick={() => setServings(shownServings + 1)}
               disabled={shownServings >= MAX_SERVINGS}
-              aria-label="More servings"
+              aria-label="More people"
             >
               +
             </button>
           </div>
         </div>
+        {shownServings !== recipe.servings && (
+          <p className="form-hint">
+            Amounts adjusted. The recipe feeds {formatPeople(recipe.servings)}.{" "}
+            <button type="button" className="link-button" onClick={() => setServings(null)}>Reset</button>
+          </p>
+        )}
         {isAdding ? (
           <AddRecipeToList recipe={recipe} servings={shownServings} onDone={() => setIsAdding(false)} />
         ) : (

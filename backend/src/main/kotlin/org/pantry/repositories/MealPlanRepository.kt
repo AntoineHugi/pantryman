@@ -13,6 +13,9 @@ import org.pantry.postgres.tables.RecipeTable
 import java.time.LocalDate
 import java.util.UUID
 
+// What fills a slot: a recipe or free text
+data class PlannedMeal(val recipeId: UUID?, val text: String?, val servings: Int)
+
 // The same access rule as lists: the owner, or a member of the plan's household.
 // Entry queries take a plan ID the caller has already checked with get().
 class MealPlanRepository {
@@ -57,9 +60,9 @@ class MealPlanRepository {
     }
 
     // Replaces whatever was in the slot
-    fun setEntry(planId: UUID, date: LocalDate, meal: String, recipeId: UUID, servings: Int) = transaction {
+    fun setEntry(planId: UUID, date: LocalDate, meal: String, planned: PlannedMeal) = transaction {
         deleteEntry(planId, date, meal)
-        insertEntry(planId, date, meal, recipeId, servings)
+        insertEntry(planId, date, meal, planned)
     }
 
     fun removeEntry(planId: UUID, date: LocalDate, meal: String): Boolean = transaction {
@@ -72,8 +75,8 @@ class MealPlanRepository {
         val other = entryAt(planId, to.first, to.second)
         deleteEntry(planId, from.first, from.second)
         deleteEntry(planId, to.first, to.second)
-        insertEntry(planId, to.first, to.second, moving.first, moving.second)
-        if (other != null) insertEntry(planId, from.first, from.second, other.first, other.second)
+        insertEntry(planId, to.first, to.second, moving)
+        if (other != null) insertEntry(planId, from.first, from.second, other)
         true
     }
 
@@ -83,11 +86,10 @@ class MealPlanRepository {
         }
     }
 
-    // recipe ID to servings
-    private fun entryAt(planId: UUID, date: LocalDate, meal: String): Pair<UUID, Int>? =
+    private fun entryAt(planId: UUID, date: LocalDate, meal: String): PlannedMeal? =
         MealPlanEntryTable.selectAll()
             .where { (MealPlanEntryTable.planId eq planId) and (MealPlanEntryTable.date eq date) and (MealPlanEntryTable.meal eq meal) }
-            .map { it[MealPlanEntryTable.recipeId] to it[MealPlanEntryTable.servings] }
+            .map { PlannedMeal(it[MealPlanEntryTable.recipeId], it[MealPlanEntryTable.text], it[MealPlanEntryTable.servings]) }
             .singleOrNull()
 
     private fun deleteEntry(planId: UUID, date: LocalDate, meal: String): Int =
@@ -95,13 +97,14 @@ class MealPlanRepository {
             (MealPlanEntryTable.planId eq planId) and (MealPlanEntryTable.date eq date) and (MealPlanEntryTable.meal eq meal)
         }
 
-    private fun insertEntry(planId: UUID, date: LocalDate, meal: String, recipeId: UUID, servings: Int) {
+    private fun insertEntry(planId: UUID, date: LocalDate, meal: String, planned: PlannedMeal) {
         MealPlanEntryTable.insert {
             it[MealPlanEntryTable.planId] = planId
             it[MealPlanEntryTable.date] = date
             it[MealPlanEntryTable.meal] = meal
-            it[MealPlanEntryTable.recipeId] = recipeId
-            it[MealPlanEntryTable.servings] = servings
+            it[MealPlanEntryTable.recipeId] = planned.recipeId
+            it[MealPlanEntryTable.text] = planned.text
+            it[MealPlanEntryTable.servings] = planned.servings
         }
     }
 
@@ -109,15 +112,15 @@ class MealPlanRepository {
         val id = this[MealPlanTable.id]
         val start = this[MealPlanTable.startDate]
         val days = this[MealPlanTable.days]
-        val entries = (MealPlanEntryTable innerJoin RecipeTable)
-            .select(MealPlanEntryTable.date, MealPlanEntryTable.meal, RecipeTable.id, RecipeTable.name, MealPlanEntryTable.servings)
+        val entries = (MealPlanEntryTable leftJoin RecipeTable)
+            .select(MealPlanEntryTable.date, MealPlanEntryTable.meal, MealPlanEntryTable.recipeId, MealPlanEntryTable.text, RecipeTable.name, MealPlanEntryTable.servings)
             .where { MealPlanEntryTable.planId eq id }
             .map {
                 MealPlanEntry(
                     date = it[MealPlanEntryTable.date].toString(),
                     meal = it[MealPlanEntryTable.meal],
-                    recipeId = it[RecipeTable.id].toString(),
-                    recipeName = it[RecipeTable.name],
+                    recipeId = it[MealPlanEntryTable.recipeId]?.toString(),
+                    recipeName = it[MealPlanEntryTable.text] ?: it[RecipeTable.name],
                     servings = it[MealPlanEntryTable.servings]
                 )
             }

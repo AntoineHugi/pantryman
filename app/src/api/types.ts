@@ -156,10 +156,15 @@ export interface User {
   }
 
   export interface MealPlanEntry extends MealSlot {
-    recipeId: string;
+    // Null for a free-text meal
+    recipeId: string | null;
+    // The recipe's name or the free text
     recipeName: string;
     servings: number;
   }
+
+  // What goes in a slot: a recipe or free text
+  export type MealChoice = { recipeId: string } | { text: string };
 
   export interface MealPlan {
     id: string;
