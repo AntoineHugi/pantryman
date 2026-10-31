@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mealPlansApi } from '../api/mealPlans';
 import type { CreateMealPlanRequest, MealChoice, MealPlan, MealSlot } from '../api/types';
+import { addDays } from '../utils/dates';
 import { listKeys } from './useGroceryLists';
 
 // Invalidating `all` also refreshes every plan
@@ -71,8 +72,8 @@ function usePlanChange<TVars>(planId: string, mutationFn: (vars: TVars) => Promi
 }
 
 export function useSetMeal(planId: string) {
-  return usePlanChange(planId, ({ slot, choice, servings }: { slot: MealSlot; choice: MealChoice; servings?: number }) =>
-    mealPlansApi.setMeal(planId, slot, choice, servings)
+  return usePlanChange(planId, ({ slot, choice, servings, onList }: { slot: MealSlot; choice: MealChoice; servings?: number; onList?: boolean }) =>
+    mealPlansApi.setMeal(planId, slot, choice, servings, onList)
   );
 }
 
@@ -94,6 +95,28 @@ export function useMoveMeal(planId: string) {
       entries: plan.entries.map((e) =>
         sameSlot(e, from) ? { ...e, ...to } : sameSlot(e, to) ? { ...e, date: from.date, meal: from.meal } : e
       ),
+    })
+  );
+}
+
+export function useAddPlanDay(planId: string) {
+  return usePlanChange<void>(
+    planId,
+    () => mealPlansApi.addDay(planId),
+    (plan) => ({ ...plan, days: plan.days + 1, endDate: addDays(plan.endDate, 1) })
+  );
+}
+
+export function useRemovePlanDay(planId: string) {
+  return usePlanChange(
+    planId,
+    (date: string) => mealPlansApi.removeDay(planId, date),
+    (plan, date) => ({
+      ...plan,
+      days: plan.days - 1,
+      startDate: date === plan.startDate ? addDays(date, 1) : plan.startDate,
+      endDate: date === plan.endDate ? addDays(date, -1) : plan.endDate,
+      entries: plan.entries.filter((e) => e.date !== date),
     })
   );
 }

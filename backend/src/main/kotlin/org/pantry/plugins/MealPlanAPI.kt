@@ -71,7 +71,7 @@ fun Application.mealPlansApi() {
                                 throw IllegalArgumentException("Invalid recipeId")
                             }
                         }
-                        call.respond(mealPlanService.setMeal(plan, call.slot(), recipeId, request.text, request.servings))
+                        call.respond(mealPlanService.setMeal(plan, call.slot(), recipeId, request.text, request.servings, request.onList))
                     }
                     delete("/entries/{date}/{meal}") {
                         val plan = call.requirePlan()
@@ -82,6 +82,15 @@ fun Application.mealPlansApi() {
                         val plan = call.requirePlan()
                         val request = call.receive<MoveMealRequest>()
                         if (!mealPlanService.moveMeal(plan, request.from, request.to)) throw NotFoundException("No meal to move")
+                        call.respond(call.requirePlan())
+                    }
+                    post("/days") {
+                        mealPlanService.addDay(call.requirePlan())
+                        call.respond(call.requirePlan())
+                    }
+                    delete("/days/{date}") {
+                        val plan = call.requirePlan()
+                        mealPlanService.removeDay(plan, call.parameters["date"] ?: throw IllegalArgumentException("Missing date"))
                         call.respond(call.requirePlan())
                     }
                     post("/confirm") {

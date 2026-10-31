@@ -9,7 +9,7 @@ data class CreateMealPlanRequest(
     val days: Int = 7,
     // Omit for a personal plan
     val householdId: String? = null,
-    // Default servings for a new meal
+    // Servings for a meal that comes without any; only older apps send it
     val people: Int = 2
 )
 
@@ -27,7 +27,10 @@ data class SetMealRequest(
     val recipeId: String? = null,
     val text: String? = null,
     // Defaults to the plan's people
-    val servings: Int? = null
+    val servings: Int? = null,
+    // Set when a removed meal is put back. Otherwise a new recipe isn't on the list, and the same
+    // recipe stays as it was.
+    val onList: Boolean? = null
 )
 
 @Serializable
@@ -45,7 +48,9 @@ data class MealPlanEntry(
     val recipeId: String?,
     // The recipe's name or the free text, so older apps can show free-text meals
     val recipeName: String,
-    val servings: Int
+    val servings: Int,
+    // Already on the plan's grocery list
+    val onList: Boolean
 )
 
 @Serializable

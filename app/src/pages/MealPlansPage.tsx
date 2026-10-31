@@ -29,7 +29,6 @@ function MealPlansPage() {
   const [showForm, setShowForm] = useState(false);
   const [startDate, setStartDate] = useState(today());
   const [days, setDays] = useState(7);
-  const [people, setPeople] = useState(2);
   // "" = personal; undefined = not chosen yet, which defaults to the first household
   const [chosenHouseholdId, setChosenHouseholdId] = useState<string | undefined>(undefined);
   const householdId = chosenHouseholdId ?? households[0]?.id ?? "";
@@ -38,7 +37,7 @@ function MealPlansPage() {
     e.preventDefault();
     if (!startDate) return;
     createPlan.mutate(
-      { startDate, days, people, householdId: householdId || null },
+      { startDate, days, householdId: householdId || null },
       { onSuccess: (plan) => navigate(`/plans/${plan.id}`) }
     );
   };
@@ -57,14 +56,6 @@ function MealPlansPage() {
               <option key={d} value={d}>{d} days</option>
             ))}
           </select>
-        </div>
-      </div>
-      <div className="form-group">
-        <span className="form-label" id="plan-people-label">People</span>
-        <div className="stepper" aria-labelledby="plan-people-label">
-          <button type="button" onClick={() => setPeople(people - 1)} disabled={people <= 1} aria-label="Fewer people">−</button>
-          <span className="servings-count">{people} {people === 1 ? "person" : "people"}</span>
-          <button type="button" onClick={() => setPeople(people + 1)} disabled={people >= 20} aria-label="More people">+</button>
         </div>
       </div>
       {households.length > 0 && (

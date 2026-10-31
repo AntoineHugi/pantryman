@@ -23,9 +23,10 @@ export const mealPlansApi = {
     await apiClient.delete(`/meal-plans/${id}`);
   },
 
-  // Replaces whatever is in the slot. Servings default to the plan's people.
-  setMeal: async (planId: string, slot: MealSlot, choice: MealChoice, servings?: number): Promise<MealPlan> => {
-    const response = await apiClient.put<MealPlan>(slotPath(planId, slot), { ...choice, servings });
+  // Replaces whatever is in the slot. Servings default to the plan's people. Pass onList when
+  // putting back a removed meal.
+  setMeal: async (planId: string, slot: MealSlot, choice: MealChoice, servings?: number, onList?: boolean): Promise<MealPlan> => {
+    const response = await apiClient.put<MealPlan>(slotPath(planId, slot), { ...choice, servings, onList });
     return response.data;
   },
 
@@ -40,7 +41,19 @@ export const mealPlansApi = {
     return response.data;
   },
 
-  // Creates the grocery list "Meal plan - 20.10/26.10"
+  // A new day after the last one
+  addDay: async (planId: string): Promise<MealPlan> => {
+    const response = await apiClient.post<MealPlan>(`/meal-plans/${planId}/days`);
+    return response.data;
+  },
+
+  // Only the first or last day; its meals go with it
+  removeDay: async (planId: string, date: string): Promise<MealPlan> => {
+    const response = await apiClient.delete<MealPlan>(`/meal-plans/${planId}/days/${date}`);
+    return response.data;
+  },
+
+  // Creates the grocery list "Meal plan - 20.10/26.10", or adds the new meals to the one it has
   confirm: async (planId: string): Promise<ConfirmMealPlanResponse> => {
     const response = await apiClient.post<ConfirmMealPlanResponse>(`/meal-plans/${planId}/confirm`);
     return response.data;

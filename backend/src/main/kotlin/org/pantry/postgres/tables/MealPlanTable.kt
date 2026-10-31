@@ -13,7 +13,7 @@ object MealPlanTable : Table("meal_plans") {
     val householdId = uuid("household_id").references(HouseholdTable.id, onDelete = ReferenceOption.SET_NULL).nullable().index()
     val startDate = date("start_date")
     val days = integer("days")
-    // Default servings for a new meal
+    // Servings for a meal that comes without any; only older apps rely on it
     val people = integer("people")
     // The list made on confirming
     val listId = uuid("list_id").references(GroceryListTable.id, onDelete = ReferenceOption.SET_NULL).nullable()
@@ -31,6 +31,8 @@ object MealPlanEntryTable : Table("meal_plan_entries") {
     val recipeId = uuid("recipe_id").references(RecipeTable.id, onDelete = ReferenceOption.CASCADE).nullable()
     val text = varchar("text", 200).nullable()
     val servings = integer("servings")
+    // Already on the plan's grocery list
+    val onList = bool("on_list").default(false)
 
     override val primaryKey = PrimaryKey(planId, date, meal)
 }

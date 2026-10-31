@@ -40,14 +40,17 @@ class MealPlanService(
     fun delete(id: UUID, userId: UUID): Boolean = repo.delete(id, userId)
 
     // The route checks access to the plan
-    fun setMeal(plan: MealPlan, slot: MealSlot, recipeId: UUID?, text: String?, servings: Int?): MealPlan {
+    fun setMeal(plan: MealPlan, slot: MealSlot, recipeId: UUID?, text: String?, servings: Int?, onList: Boolean? = null): MealPlan {
         val (date, meal) = validSlot(plan, slot)
         val cleanText = text?.trim()?.ifEmpty { null }
         if ((recipeId == null) == (cleanText == null)) throw IllegalArgumentException("A meal needs a recipe or some text")
         if (cleanText != null && cleanText.length > MAX_TEXT_LENGTH) throw IllegalArgumentException("Text must be at most $MAX_TEXT_LENGTH characters")
         if (recipeId != null) recipeRepo.get(recipeId) ?: throw IllegalArgumentException("Recipe not found")
         val id = UUID.fromString(plan.id)
-        repo.setEntry(id, date, meal, PlannedMeal(recipeId, cleanText, validServings(servings ?: plan.people, "servings")))
+        val current = plan.entries.find { it.date == date.toString() && it.meal == meal }
+        // Changing the number of people doesn't touch the list, so the meal isn't new
+        val stillOnList = recipeId != null && (onList ?: (current?.recipeId == recipeId.toString() && current.onList))
+        repo.setEntry(id, date, meal, PlannedMeal(recipeId, cleanText, validServings(servings ?: plan.people, "servings"), stillOnList))
         return repo.get(id, UUID.fromString(plan.userId))!!
     }
 
@@ -61,29 +64,55 @@ class MealPlanService(
     fun moveMeal(plan: MealPlan, from: MealSlot, to: MealSlot): Boolean =
         repo.move(UUID.fromString(plan.id), validSlot(plan, from), validSlot(plan, to))
 
+    // A new day after the last one
+    fun addDay(plan: MealPlan) {
+        if (plan.days >= MAX_DAYS) throw IllegalArgumentException("A plan can have at most $MAX_DAYS days")
+        repo.setDays(UUID.fromString(plan.id), LocalDate.parse(plan.startDate), plan.days + 1)
+    }
+
+    // A plan has no gaps, so only its first or last day can go. The day's meals go with it,
+    // and what they put on the grocery list stays there.
+    fun removeDay(plan: MealPlan, value: String) {
+        val date = parseDate(value)
+        val start = LocalDate.parse(plan.startDate)
+        if (date != start && date != LocalDate.parse(plan.endDate)) {
+            throw IllegalArgumentException("Only the first or last day can be removed")
+        }
+        if (plan.days == 1) throw IllegalArgumentException("A plan needs at least one day")
+        repo.removeDay(UUID.fromString(plan.id), date, if (date == start) start.plusDays(1) else start, plan.days - 1)
+    }
+
     /**
-     * Creates the grocery list "Meal plan - 20.10/26.10" from every meal's recipe, scaled to its
-     * servings and merged (ListMerge), shared like the plan. Free-text meals, optional ingredients
-     * and pantry staples are left out; pantry defaults are added, like on any new list.
+     * Puts the plan's meals on its grocery list, each scaled to its servings and merged (ListMerge).
+     * The first time, this creates the list "Meal plan - 20.10/26.10", shared like the plan, with
+     * the pantry defaults, like any new list. After that, only meals not on the list yet are added.
+     * Free-text meals, optional ingredients and pantry staples are left out.
      */
     fun confirm(plan: MealPlan, userId: UUID): GroceryList {
-        if (plan.listId != null) throw IllegalArgumentException("This plan already has a grocery list")
-        if (plan.entries.all { it.recipeId == null }) throw IllegalArgumentException("Add a recipe first")
+        val existingList = plan.listId?.let(UUID::fromString)
+        val meals = plan.entries.filter { it.recipeId != null && (existingList == null || !it.onList) }
+        if (meals.isEmpty()) {
+            throw IllegalArgumentException(if (existingList == null) "Add a recipe first" else "Every meal is already on the list")
+        }
+        // Its owner can stop sharing the list without the plan following
+        if (existingList != null && listRepo.getById(existingList, userId) == null) {
+            throw IllegalArgumentException("You don't have access to this plan's grocery list")
+        }
 
         val scope = plan.householdId?.let { PantryScope.Household(UUID.fromString(it)) } ?: PantryScope.Personal(userId)
         val staples = pantryService.stapleNames(scope)
-        val ingredients = plan.entries.flatMap { entry ->
+        val ingredients = meals.flatMap { entry ->
             val recipe = entry.recipeId?.let { recipeRepo.get(UUID.fromString(it)) } ?: return@flatMap emptyList()
             val scale = entry.servings.toDouble() / recipe.servings
             recipe.ingredients.filter { !it.optional && PantryService.normalize(it.name) !in staples }.map {
                 IngredientToAdd(it.name, it.amount?.let { amount -> amount * scale }, it.unit, recipe.name)
             }
         }
-        val listId = UUID.randomUUID()
-        listRepo.create(listId, listName(plan), userId, plan.householdId?.let(UUID::fromString))
+        val listId = existingList ?: UUID.randomUUID()
+        if (existingList == null) listRepo.create(listId, listName(plan), userId, plan.householdId?.let(UUID::fromString))
         itemRepo.merge(listId) { items -> ListMerge.plan(items, ingredients) }
-        pantryService.addDefaults(listId, scope, null)
-        repo.setListId(UUID.fromString(plan.id), listId)
+        if (existingList == null) pantryService.addDefaults(listId, scope, null)
+        repo.setList(UUID.fromString(plan.id), listId)
         return listRepo.getById(listId, userId)!!
     }
 

@@ -161,6 +161,8 @@ export interface User {
     // The recipe's name or the free text
     recipeName: string;
     servings: number;
+    // Already on the plan's grocery list
+    onList: boolean;
   }
 
   // What goes in a slot: a recipe or free text
@@ -174,7 +176,7 @@ export interface User {
     // The last day, included
     endDate: string;
     days: number;
-    // Default servings for a new meal
+    // Servings for a meal that comes without any
     people: number;
     // The list made on confirming; null before that, or once the list is deleted
     listId: string | null;
@@ -185,7 +187,6 @@ export interface User {
     startDate: string;
     days: number;
     householdId: string | null;
-    people: number;
   }
 
   export interface ConfirmMealPlanResponse {

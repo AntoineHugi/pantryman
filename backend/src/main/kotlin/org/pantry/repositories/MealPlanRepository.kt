@@ -14,7 +14,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 // What fills a slot: a recipe or free text
-data class PlannedMeal(val recipeId: UUID?, val text: String?, val servings: Int)
+data class PlannedMeal(val recipeId: UUID?, val text: String?, val servings: Int, val onList: Boolean)
 
 // The same access rule as lists: the owner, or a member of the plan's household.
 // Entry queries take a plan ID the caller has already checked with get().
@@ -80,16 +80,33 @@ class MealPlanRepository {
         true
     }
 
-    fun setListId(planId: UUID, listId: UUID) = transaction {
+    // The plan's meals have all gone on this list
+    fun setList(planId: UUID, listId: UUID) = transaction {
         MealPlanTable.update({ MealPlanTable.id eq planId }) {
             it[MealPlanTable.listId] = listId
         }
+        MealPlanEntryTable.update({ (MealPlanEntryTable.planId eq planId) and MealPlanEntryTable.recipeId.isNotNull() }) {
+            it[onList] = true
+        }
+    }
+
+    fun setDays(planId: UUID, startDate: LocalDate, days: Int) = transaction {
+        MealPlanTable.update({ MealPlanTable.id eq planId }) {
+            it[MealPlanTable.startDate] = startDate
+            it[MealPlanTable.days] = days
+        }
+    }
+
+    // Drops [date] and its meals; the plan then runs from [startDate] for [days]
+    fun removeDay(planId: UUID, date: LocalDate, startDate: LocalDate, days: Int) = transaction {
+        MealPlanEntryTable.deleteWhere { (MealPlanEntryTable.planId eq planId) and (MealPlanEntryTable.date eq date) }
+        setDays(planId, startDate, days)
     }
 
     private fun entryAt(planId: UUID, date: LocalDate, meal: String): PlannedMeal? =
         MealPlanEntryTable.selectAll()
             .where { (MealPlanEntryTable.planId eq planId) and (MealPlanEntryTable.date eq date) and (MealPlanEntryTable.meal eq meal) }
-            .map { PlannedMeal(it[MealPlanEntryTable.recipeId], it[MealPlanEntryTable.text], it[MealPlanEntryTable.servings]) }
+            .map { PlannedMeal(it[MealPlanEntryTable.recipeId], it[MealPlanEntryTable.text], it[MealPlanEntryTable.servings], it[MealPlanEntryTable.onList]) }
             .singleOrNull()
 
     private fun deleteEntry(planId: UUID, date: LocalDate, meal: String): Int =
@@ -105,6 +122,7 @@ class MealPlanRepository {
             it[MealPlanEntryTable.recipeId] = planned.recipeId
             it[MealPlanEntryTable.text] = planned.text
             it[MealPlanEntryTable.servings] = planned.servings
+            it[MealPlanEntryTable.onList] = planned.onList
         }
     }
 
@@ -113,7 +131,7 @@ class MealPlanRepository {
         val start = this[MealPlanTable.startDate]
         val days = this[MealPlanTable.days]
         val entries = (MealPlanEntryTable leftJoin RecipeTable)
-            .select(MealPlanEntryTable.date, MealPlanEntryTable.meal, MealPlanEntryTable.recipeId, MealPlanEntryTable.text, RecipeTable.name, MealPlanEntryTable.servings)
+            .select(MealPlanEntryTable.date, MealPlanEntryTable.meal, MealPlanEntryTable.recipeId, MealPlanEntryTable.text, RecipeTable.name, MealPlanEntryTable.servings, MealPlanEntryTable.onList)
             .where { MealPlanEntryTable.planId eq id }
             .map {
                 MealPlanEntry(
@@ -121,7 +139,8 @@ class MealPlanRepository {
                     meal = it[MealPlanEntryTable.meal],
                     recipeId = it[MealPlanEntryTable.recipeId]?.toString(),
                     recipeName = it[MealPlanEntryTable.text] ?: it[RecipeTable.name],
-                    servings = it[MealPlanEntryTable.servings]
+                    servings = it[MealPlanEntryTable.servings],
+                    onList = it[MealPlanEntryTable.onList]
                 )
             }
             // Day by day, lunch before dinner

@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
-import type { Meal, MealChoice, MealPlan, MealPlanEntry, MealSlot } from "../api/types";
+import type { Meal, MealChoice, MealPlan, MealPlanEntry, MealSlot, RecipeSummary } from "../api/types";
 import BackLink from "../components/BackLink";
 import RecipePicker from "../components/RecipePicker";
 import SlowServerNotice from "../components/SlowServerNotice";
 import { useFeedback } from "../hooks/useFeedback";
 import { useHouseholds } from "../hooks/useHouseholds";
 import {
+  useAddPlanDay,
   useConfirmMealPlan,
   useDeleteMealPlan,
   useMealPlan,
   useMoveMeal,
   useRemoveMeal,
+  useRemovePlanDay,
   useSetMeal,
 } from "../hooks/useMealPlans";
 import { addDays, formatDateRange, formatDay, today } from "../utils/dates";
@@ -36,6 +38,8 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
   const setMeal = useSetMeal(plan.id);
   const removeMeal = useRemoveMeal(plan.id);
   const moveMeal = useMoveMeal(plan.id);
+  const addDay = useAddPlanDay(plan.id);
+  const removeDay = useRemovePlanDay(plan.id);
   const confirmPlan = useConfirmMealPlan(plan.id);
   const deletePlan = useDeleteMealPlan();
   // The slot whose actions are open
@@ -50,7 +54,9 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
   const entryAt = (slot: MealSlot) => plan.entries.find((e) => sameSlot(e, slot));
   const household = households.find((h) => h.id === plan.householdId);
   const isPast = (date: string) => date < today();
-  const recipeMeals = plan.entries.filter((e) => e.recipeId).length;
+  const recipeMeals = plan.entries.filter((e) => e.recipeId);
+  // What confirming puts on the list: once the plan has one, only meals not on it yet
+  const newMeals = plan.listId ? recipeMeals.filter((e) => !e.onList).length : recipeMeals.length;
 
   const handleSlotTap = (slot: MealSlot) => {
     if (moving) {
@@ -64,13 +70,20 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
     else setPicking(slot);
   };
 
-  const handlePick = (choice: MealChoice) => {
+  const handlePickRecipe = (recipe: RecipeSummary) => {
     if (!picking) return;
+    // A new meal starts like the plan's latest one, or else at what the recipe feeds
     const current = entryAt(picking);
-    setMeal.mutate(
-      { slot: picking, choice, servings: current?.servings },
-      { onError: showError("Could not add the meal") }
-    );
+    const servings = current?.recipeId ? current.servings : recipeMeals.at(-1)?.servings ?? recipe.servings;
+    setMeal.mutate({ slot: picking, choice: { recipeId: recipe.id }, servings }, { onError: showError("Could not add the meal") });
+    // Shows the number of people, to adjust it for this meal
+    setOpenSlot(picking);
+    setPicking(null);
+  };
+
+  const handlePickText = (text: string) => {
+    if (!picking) return;
+    setMeal.mutate({ slot: picking, choice: { text }, servings: entryAt(picking)?.servings }, { onError: showError("Could not add the meal") });
     setPicking(null);
   };
 
@@ -87,22 +100,47 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
       message: `Removed ${entry.recipeName}`,
       actionLabel: "Undo",
       onAction: () =>
-        setMeal.mutate({ slot: entry, choice: choiceOf(entry), servings: entry.servings }, { onError: showError("Could not put the meal back") }),
+        setMeal.mutate({ slot: entry, choice: choiceOf(entry), servings: entry.servings, onList: entry.onList }, { onError: showError("Could not put the meal back") }),
     });
   };
 
+  const handleRemoveDay = async (date: string) => {
+    const meals = plan.entries.filter((e) => e.date === date).length;
+    // A day that's over has nothing left to lose
+    if (meals > 0 && !isPast(date)) {
+      const confirmed = await confirm({
+        title: `Remove ${formatDay(date)}?`,
+        message: `${meals === 1 ? "Its meal goes" : `Its ${meals} meals go`} with it.${plan.listId ? " The grocery list stays as it is." : ""}`,
+        confirmLabel: "Remove",
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
+    setOpenSlot(null);
+    removeDay.mutate(date, { onError: showError("Could not remove the day") });
+  };
+
   const handleConfirm = async () => {
-    const count = recipeMeals;
+    const count = newMeals;
+    const mealCount = `${count} ${count === 1 ? "meal" : "meals"}`;
     const skipped = plan.entries.length - count;
-    const confirmed = await confirm({
-      title: "Create the grocery list?",
-      message: `A new list with the ingredients of ${count} ${count === 1 ? "meal" : "meals"}, ${household ? `shared with ${household.name}` : "just for you"}, plus your usual items. Optional ingredients and what's always at home are left out${skipped > 0 ? `, and so ${skipped === 1 ? "is 1 meal" : `are ${skipped} meals`} without a recipe` : ""}.`,
-      confirmLabel: "Create list",
-    });
+    const confirmed = await confirm(
+      plan.listId
+        ? {
+            title: "Add to the grocery list?",
+            message: `The ingredients of ${mealCount} go on this plan's list. Optional ingredients and what's always at home are left out.`,
+            confirmLabel: "Add to list",
+          }
+        : {
+            title: "Create the grocery list?",
+            message: `A new list with the ingredients of ${mealCount}, ${household ? `shared with ${household.name}` : "just for you"}, plus your usual items. Optional ingredients and what's always at home are left out${skipped > 0 ? `, and so ${skipped === 1 ? "is 1 meal" : `are ${skipped} meals`} without a recipe` : ""}.`,
+            confirmLabel: "Create list",
+          }
+    );
     if (!confirmed) return;
     confirmPlan.mutate(undefined, {
       onSuccess: ({ list }) => navigate(`/lists/${list.id}/items`),
-      onError: showError("Could not create the list"),
+      onError: showError(plan.listId ? "Could not add to the list" : "Could not create the list"),
     });
   };
 
@@ -125,7 +163,7 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
       <BackLink to="/plans" label="Meal plans" />
       <h1>{formatDateRange(plan.startDate, plan.endDate)}</h1>
       <p className="recipe-meta">
-        {plan.people} {plan.people === 1 ? "person" : "people"} · {household ? `Shared with ${household.name}` : plan.householdId ? "Shared" : "Personal"}
+        {household ? `Shared with ${household.name}` : plan.householdId ? "Shared" : "Personal"}
       </p>
 
       {moving && (
@@ -138,7 +176,19 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
       <div className="plan-days">
         {days.map((date) => (
           <section key={date} className={`card plan-day${isPast(date) ? " is-past" : ""}`}>
-            <h2 className="plan-day-title">{formatDay(date)}</h2>
+            <div className="plan-day-header">
+              <h2 className="plan-day-title">{formatDay(date)}</h2>
+              {!moving && plan.days > 1 && (date === plan.startDate || date === plan.endDate) && (
+                <button
+                  className="btn btn-secondary btn-small"
+                  onClick={() => handleRemoveDay(date)}
+                  disabled={removeDay.isPending}
+                  aria-label={`Remove ${formatDay(date)}`}
+                >
+                  Remove day
+                </button>
+              )}
+            </div>
             {MEALS.map(({ meal, label }) => {
               const slot = { date, meal };
               const entry = entryAt(slot);
@@ -150,7 +200,11 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
                     {entry ? (
                       <span className="plan-slot-meal">
                         <span className="plan-slot-name">{entry.recipeName}</span>
-                        {entry.recipeId && <span className="recipe-card-meta">{formatPeople(entry.servings)}</span>}
+                        {entry.recipeId && (
+                          <span className="recipe-card-meta">
+                            {formatPeople(entry.servings)}{plan.listId && entry.onList ? " · on the list" : ""}
+                          </span>
+                        )}
                       </span>
                     ) : (
                       <span className="plan-slot-empty">{moving ? "Move here" : "+ Add a meal"}</span>
@@ -180,14 +234,24 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
         ))}
       </div>
 
+      <button className="btn btn-secondary btn-block plan-add-day" onClick={() => addDay.mutate(undefined, { onError: showError("Could not add a day") })} disabled={addDay.isPending}>
+        + Add a day
+      </button>
+      <SlowServerNotice active={addDay.isPending || removeDay.isPending} />
+
       <div className="plan-footer">
         {plan.listId ? (
           <>
-            <p className="muted">The grocery list was made from this plan. Changes since then aren't on it; add extra recipes from their page.</p>
-            <Link className="btn btn-primary btn-block" to={`/lists/${plan.listId}/items`}>Open the grocery list</Link>
+            {newMeals > 0 && (
+              <button className="btn btn-primary btn-block" onClick={handleConfirm} disabled={confirmPlan.isPending}>
+                Add {newMeals} new {newMeals === 1 ? "meal" : "meals"} to the list
+              </button>
+            )}
+            <p className="muted">Changes to meals already on the grocery list don't update it.</p>
+            <Link className={`btn ${newMeals > 0 ? "btn-secondary" : "btn-primary"} btn-block`} to={`/lists/${plan.listId}/items`}>Open the grocery list</Link>
           </>
         ) : (
-          <button className="btn btn-primary btn-block" onClick={handleConfirm} disabled={recipeMeals === 0 || confirmPlan.isPending}>
+          <button className="btn btn-primary btn-block" onClick={handleConfirm} disabled={newMeals === 0 || confirmPlan.isPending}>
             Create grocery list
           </button>
         )}
@@ -201,8 +265,8 @@ function MealPlanView({ plan }: { plan: MealPlan }) {
         <RecipePicker
           title={`${MEALS.find((m) => m.meal === picking.meal)?.label}, ${formatDay(picking.date)}`}
           initialText={entryAt(picking)?.recipeId === null ? entryAt(picking)?.recipeName : undefined}
-          onPick={(recipe) => handlePick({ recipeId: recipe.id })}
-          onText={(text) => handlePick({ text })}
+          onPick={handlePickRecipe}
+          onText={handlePickText}
           onClose={() => setPicking(null)}
         />
       )}

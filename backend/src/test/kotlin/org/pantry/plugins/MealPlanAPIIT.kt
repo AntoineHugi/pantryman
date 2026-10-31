@@ -389,6 +389,217 @@ class MealPlanAPIIT : KoinTest {
         assertNotNull(after.id)
     }
 
+    private suspend fun ApplicationTestBuilder.addDay(user: UUID, planId: String): HttpResponse =
+        jsonClient.post("/meal-plans/$planId/days") { bearerAuth(token(user)) }
+
+    private suspend fun ApplicationTestBuilder.removeDay(user: UUID, planId: String, date: String): HttpResponse =
+        jsonClient.delete("/meal-plans/$planId/days/$date") { bearerAuth(token(user)) }
+
+    private suspend fun ApplicationTestBuilder.confirm(user: UUID, planId: String): HttpResponse =
+        jsonClient.post("/meal-plans/$planId/confirm") { bearerAuth(token(user)) }
+
+    @Test
+    fun `a plan needs no people, each meal has its own`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val response = jsonClient.post("/meal-plans") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(token(alice))
+            setBody("{\"startDate\": \"2026-10-20\", \"days\": 3}")
+        }
+        assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+        val plan: MealPlan = response.body()
+
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup, servings = 1)
+        val filled: MealPlan = setMeal(alice, plan.id, "2026-10-20", "dinner", soup, servings = 5).body()
+
+        assertEquals(listOf("2026-10-20 lunch Soup 1", "2026-10-20 dinner Soup 5"), filled.slots())
+    }
+
+    @Test
+    fun `days are added after the last one`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val plan = createPlan(alice)
+        assertEquals(HttpStatusCode.BadRequest, setMeal(alice, plan.id, "2026-10-27", "lunch", soup).status)
+
+        val response = addDay(alice, plan.id)
+
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        val longer: MealPlan = response.body()
+        assertEquals("2026-10-20", longer.startDate)
+        assertEquals("2026-10-27", longer.endDate)
+        assertEquals(8, longer.days)
+        assertEquals(HttpStatusCode.OK, setMeal(alice, plan.id, "2026-10-27", "lunch", soup).status)
+    }
+
+    @Test
+    fun `a plan can't grow past the maximum number of days`() = testApplication {
+        setupTestApplication()
+        val plan = createPlan(alice)
+        repeat(MealPlanService.MAX_DAYS - plan.days) { addDay(alice, plan.id) }
+
+        assertEquals(HttpStatusCode.BadRequest, addDay(alice, plan.id).status)
+        assertEquals(MealPlanService.MAX_DAYS, plan(alice, plan.id).body<MealPlan>().days)
+    }
+
+    @Test
+    fun `removing the first or last day takes its meals and keeps the others`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val plan = createPlan(alice)
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup)
+        setMeal(alice, plan.id, "2026-10-20", "dinner", soup)
+        setMeal(alice, plan.id, "2026-10-21", "dinner", soup)
+        setMeal(alice, plan.id, "2026-10-26", "lunch", soup)
+
+        val response = removeDay(alice, plan.id, "2026-10-20")
+
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        val shorter: MealPlan = response.body()
+        assertEquals("2026-10-21", shorter.startDate)
+        assertEquals("2026-10-26", shorter.endDate)
+        assertEquals(6, shorter.days)
+        assertEquals(listOf("2026-10-21 dinner Soup 4", "2026-10-26 lunch Soup 4"), shorter.slots())
+
+        val last: MealPlan = removeDay(alice, plan.id, "2026-10-26").body()
+        assertEquals("2026-10-21", last.startDate)
+        assertEquals("2026-10-25", last.endDate)
+        assertEquals(listOf("2026-10-21 dinner Soup 4"), last.slots())
+    }
+
+    @Test
+    fun `only an end of the plan can be removed, and never its only day`() = testApplication {
+        setupTestApplication()
+        val plan = createPlan(alice)
+
+        assertEquals(HttpStatusCode.BadRequest, removeDay(alice, plan.id, "2026-10-23").status)
+        assertEquals(HttpStatusCode.BadRequest, removeDay(alice, plan.id, "2026-10-27").status)
+        assertEquals(HttpStatusCode.BadRequest, removeDay(alice, plan.id, "someday").status)
+
+        repeat(6) { removeDay(alice, plan.id, "2026-10-2${it}") }
+        val single: MealPlan = plan(alice, plan.id).body()
+        assertEquals(1, single.days)
+        assertEquals("2026-10-26", single.startDate)
+        assertEquals(HttpStatusCode.BadRequest, removeDay(alice, plan.id, "2026-10-26").status)
+    }
+
+    @Test
+    fun `other users can't add or remove days`() = testApplication {
+        setupTestApplication()
+        val plan = createPlan(alice)
+
+        assertEquals(HttpStatusCode.NotFound, addDay(bob, plan.id).status)
+        assertEquals(HttpStatusCode.NotFound, removeDay(bob, plan.id, "2026-10-20").status)
+        val after: MealPlan = plan(alice, plan.id).body()
+        assertEquals(plan.startDate, after.startDate)
+        assertEquals(plan.days, after.days)
+    }
+
+    @Test
+    fun `new meals go on the plan's existing list, without adding the earlier ones again`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("stock", 500.0, "ml"))
+        val pasta = recipe("Pasta", RecipeIngredient("spaghetti", 200.0, "g"), RecipeIngredient("stock", 100.0, "ml"))
+        val plan = createPlan(alice, people = 2)
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup)
+        val first: ConfirmMealPlanResponse = confirm(alice, plan.id).body()
+        assertTrue(first.plan.entries.single().onList)
+
+        removeDay(alice, plan.id, "2026-10-20")
+        addDay(alice, plan.id)
+        val added: MealPlan = setMeal(alice, plan.id, "2026-10-27", "dinner", pasta).body()
+        assertEquals(listOf(false), added.entries.map { it.onList })
+
+        val response = confirm(alice, plan.id)
+
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        val second: ConfirmMealPlanResponse = response.body()
+        assertEquals(first.list.id, second.list.id)
+        assertEquals(first.list.id, second.plan.listId)
+        assertEquals(
+            listOf("stock 600.0 ml", "spaghetti 200.0 g"),
+            second.list.items.map { "${it.name} ${it.quantity} ${it.unit}" }
+        )
+        assertEquals(HttpStatusCode.BadRequest, confirm(alice, plan.id).status)
+    }
+
+    @Test
+    fun `a meal stays on the list when its people change or it moves, but not when its recipe changes`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val pasta = recipe("Pasta", RecipeIngredient("spaghetti", 200.0, "g"))
+        val plan = createPlan(alice)
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup)
+        confirm(alice, plan.id)
+
+        val resized: MealPlan = setMeal(alice, plan.id, "2026-10-20", "lunch", soup, servings = 6).body()
+        assertEquals(listOf(true), resized.entries.map { it.onList })
+
+        val moved: MealPlan = jsonClient.post("/meal-plans/${plan.id}/move") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(token(alice))
+            setBody(MoveMealRequest(MealSlot("2026-10-20", "lunch"), MealSlot("2026-10-21", "lunch")))
+        }.body()
+        assertEquals(listOf(true), moved.entries.map { it.onList })
+
+        val changed: MealPlan = setMeal(alice, plan.id, "2026-10-21", "lunch", pasta).body()
+        assertEquals(listOf(false), changed.entries.map { it.onList })
+    }
+
+    @Test
+    fun `a removed meal put back with Undo stays on the list`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val plan = createPlan(alice)
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup)
+        confirm(alice, plan.id)
+        jsonClient.delete("/meal-plans/${plan.id}/entries/2026-10-20/lunch") { bearerAuth(token(alice)) }
+
+        val back: MealPlan = putMeal(alice, plan.id, "2026-10-20", "lunch", SetMealRequest(soup, onList = true)).body()
+
+        assertEquals(listOf(true), back.entries.map { it.onList })
+    }
+
+    @Test
+    fun `after deleting the list, every meal goes on the new one`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val plan = createPlan(alice)
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup)
+        val first: ConfirmMealPlanResponse = confirm(alice, plan.id).body()
+        jsonClient.delete("/lists/${first.list.id}") { bearerAuth(token(alice)) }
+
+        val second: ConfirmMealPlanResponse = confirm(alice, plan.id).body()
+
+        assertEquals(listOf("water"), second.list.items.map { it.name })
+    }
+
+    @Test
+    fun `a member who lost access to the plan's list can't add to it`() = testApplication {
+        setupTestApplication()
+        val soup = recipe("Soup", RecipeIngredient("water", 1.0, "l"))
+        val pasta = recipe("Pasta", RecipeIngredient("spaghetti", 200.0, "g"))
+        val household: Household = jsonClient.post("/households") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(token(alice))
+            setBody(CreateHouseholdRequest("Home"))
+        }.body()
+        jsonClient.post("/households/join") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(token(bob))
+            setBody(JoinHouseholdRequest(household.inviteCode))
+        }
+        val plan = createPlan(alice, household.id)
+        setMeal(alice, plan.id, "2026-10-20", "lunch", soup)
+        val list = confirm(alice, plan.id).body<ConfirmMealPlanResponse>().list
+        GroceryListRepository(ItemRepository()).setHousehold(UUID.fromString(list.id), null, alice)
+        setMeal(bob, plan.id, "2026-10-21", "lunch", pasta)
+
+        assertEquals(HttpStatusCode.BadRequest, confirm(bob, plan.id).status)
+        assertEquals(HttpStatusCode.OK, confirm(alice, plan.id).status)
+    }
+
     @Test
     fun `invalid plans are rejected`() = testApplication {
         setupTestApplication()
